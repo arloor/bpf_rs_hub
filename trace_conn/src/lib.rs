@@ -66,9 +66,10 @@ fn handle_event(_cpu: i32, data: &[u8]) {
 }
 
 pub fn start(glibc:&str) -> Result<(),DynError> {
+    println!("start trace connection");
     let mut skel_builder = TraceconSkelBuilder::default();
 
-    skel_builder.obj_builder.debug(true);
+    skel_builder.obj_builder.debug(false);
 
     bump_memlock_rlimit()?;
     let open_skel = skel_builder.open()?;
