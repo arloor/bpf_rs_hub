@@ -1,0 +1,15 @@
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+# https://doc.rust-lang.org/cargo/reference/specifying-dependencies.html#inheriting-a-dependency-from-a-workspace
+[workspace.dependencies]
+libbpf-cargo = "0.23.0"                                                          # Cargo plugin to build bpf programs
+vmlinux = { git = "https://github.com/libbpf/libbpf-rs.git", branch = "master" }
+log= "0.4"
+libbpf-rs = "0.23"
+libc = "0.2" 
+
+[workspace]
+members = [
+    "socket_filter",
+    "trace_conn"
+]
+resolver = "2"

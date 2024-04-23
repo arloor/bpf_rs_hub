@@ -1,0 +1,17 @@
+[package]
+name = "trace_conn"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+libbpf-rs.workspace=true
+plain = "0.2.3"
+libc.workspace=true
+ctrlc = "3.1"
+object = "0.35"
+
+[build-dependencies]
+libbpf-cargo = { workspace = true } # Cargo plugin to build bpf programs
+vmlinux = { workspace = true }
