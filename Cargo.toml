@@ -6,6 +6,7 @@ vmlinux = { git = "https://github.com/libbpf/libbpf-rs.git", branch = "master" }
 log= "0.4"
 libbpf-rs = "0.23"
 libc = "0.2" 
+plain = "0.2.3" 
 
 [workspace]
 members = [
