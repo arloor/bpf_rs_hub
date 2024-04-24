@@ -7,15 +7,15 @@
         {
             "type": "lldb",
             "request": "launch",
-            "name": "Debug example 'example1'",
+            "name": "Debug 'ex_socket_filter'",
             "cargo": {
                 "args": [
                     "build",
-                    "--example=example1",
+                    "--example=ex_socket_filter",
                     "--package=socket_filter"
                 ],
                 "filter": {
-                    "name": "example1",
+                    "name": "ex_socket_filter",
                     "kind": "example"
                 }
             },
@@ -25,15 +25,15 @@
         {
             "type": "lldb",
             "request": "launch",
-            "name": "Debug example 'example2'",
+            "name": "Debug  'ex_trace_conn'",
             "cargo": {
                 "args": [
                     "build",
-                    "--example=example2",
+                    "--example=ex_trace_conn",
                     "--package=trace_conn"
                 ],
                 "filter": {
-                    "name": "example2",
+                    "name": "ex_trace_conn",
                     "kind": "example"
                 }
             },
