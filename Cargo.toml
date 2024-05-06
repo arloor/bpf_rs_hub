@@ -4,7 +4,7 @@
 libbpf-cargo = "0.23.0"                                                          # Cargo plugin to build bpf programs
 vmlinux = { git = "https://github.com/libbpf/libbpf-rs.git", branch = "master" }
 log= "0.4"
-libbpf-rs = {version = "0.23",features = ["vendored"]}
+libbpf-rs = "0.23"
 libc = "0.2" 
 plain = "0.2.3" 
 
