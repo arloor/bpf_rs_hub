@@ -18,6 +18,6 @@ vmlinux = { workspace = true }
 
 
 [features]
-default=["libbpf-rs/default"]
+default = ["libbpf-rs/default"]
 vendored = ["libbpf-rs/vendored"]
 static = ["libbpf-rs/static"]
