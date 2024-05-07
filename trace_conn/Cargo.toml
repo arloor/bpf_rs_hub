@@ -6,9 +6,9 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-libbpf-rs.workspace=true
-plain.workspace=true
-libc.workspace=true
+libbpf-rs = { workspace = true, default-features = false }
+plain.workspace = true
+libc.workspace = true
 ctrlc = "3.1"
 object = "0.35"
 
@@ -18,4 +18,6 @@ vmlinux = { workspace = true }
 
 
 [features]
-vendored=["libbpf-rs/vendored"]
+default=["libbpf-rs/default"]
+vendored = ["libbpf-rs/vendored"]
+static = ["libbpf-rs/static"]
