@@ -11,6 +11,7 @@
             "cargo": {
                 "args": [
                     "build",
+                    // "--features=vendored",
                     "--example=ex_socket_filter",
                     "--package=socket_filter"
                 ],
@@ -29,6 +30,7 @@
             "cargo": {
                 "args": [
                     "build",
+                    // "--features=vendored",
                     "--example=ex_trace_conn",
                     "--package=trace_conn"
                 ],

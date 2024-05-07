@@ -15,3 +15,7 @@ object = "0.35"
 [build-dependencies]
 libbpf-cargo = { workspace = true } # Cargo plugin to build bpf programs
 vmlinux = { workspace = true }
+
+
+[features]
+vendored=["libbpf-rs/vendored"]

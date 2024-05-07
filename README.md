@@ -25,3 +25,12 @@ yum install -y libbpf zlib-devel elfutils-libelf-devel pkgconf-pkg-config clang 
 ```bash
 bpftool btf dump file /sys/kernel/btf/vmlinux format c > vmlinux.h
 ```
+
+## 静态链接libbpf libelf zlib
+
+```bash
+yum install -y autoconf gettext-devel flex bison gawk make pkg-config automake
+apt-get install -y autoconf autopoint flex bison gawk make pkg-config automake
+``` 
+
+激活vendored feature
