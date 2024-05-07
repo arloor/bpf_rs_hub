@@ -12,10 +12,10 @@ name = "example1"
 path = "examples/example1.rs"
 
 [dependencies]
-libc.workspace=true  # Raw FFI bindings to platform libraries like libc
-libbpf-rs.workspace=true # libbpf-rs is a safe, idiomatic, and opinionated wrapper around libbpf-sys
-plain.workspace=true    # A small Rust library that allows users to reinterpret data of certain types safely
-pnet = "0.34"        # Rust library for low level networking using the pcap library
+libc = { workspace = true, default-features = false } # Raw FFI bindings to platform libraries like libc
+libbpf-rs.workspace = true                            # libbpf-rs is a safe, idiomatic, and opinionated wrapper around libbpf-sys
+plain.workspace = true                                # A small Rust library that allows users to reinterpret data of certain types safely
+pnet = "0.34"                                         # Rust library for low level networking using the pcap library
 log.workspace = true
 
 [build-dependencies]
@@ -23,4 +23,6 @@ libbpf-cargo = { workspace = true } # Cargo plugin to build bpf programs
 vmlinux = { workspace = true }
 
 [features]
-vendored=["libbpf-rs/vendored"]
+default = ["libbpf-rs/default"]
+vendored = ["libbpf-rs/vendored"]
+static = ["libbpf-rs/static"]
