@@ -14,10 +14,11 @@ object = "0.35"
 
 [build-dependencies]
 libbpf-cargo = { workspace = true } # Cargo plugin to build bpf programs
-vmlinux = { workspace = true }
+vmlinux = { workspace = true ,optional = true}
 
 
 [features]
 default = ["libbpf-rs/default"]
 vendored = ["libbpf-rs/vendored"]
 static = ["libbpf-rs/static"]
+remote-vmlinux=["vmlinux"]
