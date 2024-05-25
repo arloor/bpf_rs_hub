@@ -55,7 +55,6 @@ pub fn start<F>(glibc: &str, handler: F) -> Result<(), DynError>
 where
     F: FnMut(i32, &[u8]),
 {
-    println!("start trace connection");
     let mut skel_builder = TraceconSkelBuilder::default();
 
     skel_builder.obj_builder.debug(false);
