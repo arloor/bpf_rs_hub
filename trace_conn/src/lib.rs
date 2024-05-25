@@ -5,8 +5,6 @@ use object::{Object, ObjectSymbol};
 use plain::Plain;
 use std::fs;
 use std::path::Path;
-use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::Arc;
 use std::time::Duration;
 
 mod prog {
@@ -94,15 +92,7 @@ where
         .sample_cb(handler)
         .build()?;
 
-    let running = Arc::new(AtomicBool::new(true));
-    let r = running.clone();
-    ctrlc::set_handler(move || {
-        r.store(false, Ordering::SeqCst);
-    })?;
-
-    while running.load(Ordering::SeqCst) {
+    loop {
         perf.poll(Duration::from_millis(100))?;
     }
-
-    Ok(())
 }

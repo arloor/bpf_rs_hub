@@ -9,7 +9,6 @@ edition = "2021"
 libbpf-rs = { workspace = true, default-features = false }
 plain.workspace = true
 libc.workspace = true
-ctrlc = "3.1"
 object = "0.35"
 
 [build-dependencies]
