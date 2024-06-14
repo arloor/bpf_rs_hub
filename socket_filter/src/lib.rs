@@ -25,7 +25,7 @@ impl SocketFilter {
         get_value(&self.skel)
     }
 
-    pub fn new(ignored_interfaces :Vec<&str>) -> Self {
+    pub fn new(ignored_interfaces :Vec<&'static str>) -> Self {
         bump_memlock_rlimit().expect("Failed to increase rlimit");
         let skel = open_and_load_socket_filter_prog();
         let all_interfaces = datalink::interfaces();
