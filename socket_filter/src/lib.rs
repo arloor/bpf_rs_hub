@@ -25,14 +25,14 @@ impl SocketFilter {
         get_value(&self.skel)
     }
 
-    pub fn new(ignored_interfaces :Vec<&'static str>) -> Self {
+    pub fn new(ignored_interfaces: &Vec<&'static str>) -> Self {
         bump_memlock_rlimit().expect("Failed to increase rlimit");
         let skel = open_and_load_socket_filter_prog();
         let all_interfaces = datalink::interfaces();
-        
+
         // 遍历接口列表
         for iface in all_interfaces {
-            for ele in &ignored_interfaces {
+            for ele in ignored_interfaces {
                 if iface.name.starts_with(ele) {
                     continue;
                 }
@@ -46,7 +46,7 @@ impl SocketFilter {
 
 impl Default for SocketFilter {
     fn default() -> Self {
-        SocketFilter::new(vec!["lo","podman","veth","flannel","cni0","utun"])
+        SocketFilter::new(&vec!["lo", "podman", "veth", "flannel", "cni0", "utun"])
     }
 }
 
@@ -57,7 +57,7 @@ pub fn open_and_load_socket_filter_prog() -> ProgramSkel<'static> {
     open_skel.load().expect("Failed to load BPF program")
 }
 type DynError = Box<dyn std::error::Error>;
-fn bump_memlock_rlimit() -> Result<(),DynError> {
+fn bump_memlock_rlimit() -> Result<(), DynError> {
     let rlimit = libc::rlimit {
         rlim_cur: 128 << 20,
         rlim_max: 128 << 20,
