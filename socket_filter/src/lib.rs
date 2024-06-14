@@ -25,17 +25,15 @@ impl SocketFilter {
         get_value(&self.skel)
     }
 
-    pub fn new(ignored_interfaces: &Vec<&'static str>) -> Self {
+    pub fn new(ignored_interfaces: &[&'static str]) -> Self {
         bump_memlock_rlimit().expect("Failed to increase rlimit");
         let skel = open_and_load_socket_filter_prog();
         let all_interfaces = datalink::interfaces();
 
         // 遍历接口列表
         for iface in all_interfaces {
-            for ele in ignored_interfaces {
-                if iface.name.starts_with(ele) {
-                    continue;
-                }
+            if ignored_interfaces.iter().any(|&ignored| iface.name.starts_with(ignored)) {
+                continue;
             }
             info!("load bpf socket filter for Interface: {}", iface.name);
             set_socket_opt_bpf(&skel, iface.name.as_str());
@@ -46,7 +44,7 @@ impl SocketFilter {
 
 impl Default for SocketFilter {
     fn default() -> Self {
-        SocketFilter::new(&vec!["lo", "podman", "veth", "flannel", "cni0", "utun"])
+        SocketFilter::new(&["lo", "podman", "veth", "flannel", "cni0", "utun"])
     }
 }
 
