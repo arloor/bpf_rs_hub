@@ -24,22 +24,29 @@ impl SocketFilter {
     pub fn get_current_outbound_bytes(&self) -> u64 {
         get_value(&self.skel)
     }
-}
 
-impl Default for SocketFilter {
-    fn default() -> Self {
+    pub fn new(ignored_interfaces :Vec<&str>) -> Self {
         bump_memlock_rlimit().expect("Failed to increase rlimit");
         let skel = open_and_load_socket_filter_prog();
         let all_interfaces = datalink::interfaces();
+        
         // 遍历接口列表
         for iface in all_interfaces {
-            if iface.name.starts_with("lo")||iface.name.starts_with("podman")||iface.name.starts_with("veth")||iface.name.starts_with("flannel")||iface.name.starts_with("cni0")||iface.name.starts_with("utun") {
-                continue;
+            for ele in &ignored_interfaces {
+                if iface.name.starts_with(ele) {
+                    continue;
+                }
             }
             info!("load bpf socket filter for Interface: {}", iface.name);
             set_socket_opt_bpf(&skel, iface.name.as_str());
         }
         SocketFilter { skel }
+    }
+}
+
+impl Default for SocketFilter {
+    fn default() -> Self {
+        SocketFilter::new(vec!["lo","podman","veth","flannel","cni0","utun"])
     }
 }
 
