@@ -16,11 +16,11 @@ use libbpf_rs::MapFlags;
 use pnet::datalink;
 use std::mem::size_of_val;
 
-pub struct SocketFilter {
+pub struct TransmitCounter {
     skel: ProgramSkel<'static>,
 }
 
-impl SocketFilter {
+impl TransmitCounter {
     pub fn get_current_outbound_bytes(&self) -> u64 {
         get_value(&self.skel)
     }
@@ -32,19 +32,22 @@ impl SocketFilter {
 
         // 遍历接口列表
         for iface in all_interfaces {
-            if ignored_interfaces.iter().any(|&ignored| iface.name.starts_with(ignored)) {
+            if ignored_interfaces
+                .iter()
+                .any(|&ignored| iface.name.starts_with(ignored))
+            {
                 continue;
             }
             info!("load bpf socket filter for Interface: {}", iface.name);
             set_socket_opt_bpf(&skel, iface.name.as_str());
         }
-        SocketFilter { skel }
+        TransmitCounter { skel }
     }
 }
 
-impl Default for SocketFilter {
+impl Default for TransmitCounter {
     fn default() -> Self {
-        SocketFilter::new(&["lo", "podman", "veth", "flannel", "cni0", "utun"])
+        TransmitCounter::new(&["lo", "podman", "veth", "flannel", "cni0", "utun"])
     }
 }
 
