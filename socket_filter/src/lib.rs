@@ -21,8 +21,12 @@ pub struct TransmitCounter {
 }
 
 impl TransmitCounter {
-    pub fn get_current_outbound_bytes(&self) -> u64 {
-        get_value(&self.skel)
+    pub fn get_egress(&self) -> u64 {
+        get(&self.skel, EGRESS)
+    }
+
+    pub fn get_ingress(&self) -> u64 {
+        get(&self.skel, INGRESS)
     }
 
     pub fn new(ignored_interfaces: &[&'static str]) -> Self {
@@ -90,11 +94,13 @@ pub fn set_socket_opt_bpf(skel: &ProgramSkel<'static>, name: &str) {
     };
 }
 
-pub fn get_value(skel: &ProgramSkel<'static>) -> u64 {
+struct Direction(u32);
+const EGRESS: Direction = Direction(0);
+const INGRESS: Direction = Direction(1);
+fn get(skel: &ProgramSkel<'static>, direction: Direction) -> u64 {
     let maps = skel.maps();
     let map = maps.map();
-
-    let key = unsafe { plain::as_bytes(&(libc::IPPROTO_IP as u32)) };
+    let key = unsafe { plain::as_bytes(&direction.0) };
     let mut value: u64 = 0;
     if let Ok(Some(buf)) = map.lookup(key, MapFlags::ANY) {
         plain::copy_from_bytes(&mut value, &buf).expect("Invalid buffer");
