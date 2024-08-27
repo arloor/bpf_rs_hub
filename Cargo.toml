@@ -3,14 +3,11 @@
 [workspace.dependencies]
 libbpf-cargo = "0.23.0"                                                          # Cargo plugin to build bpf programs
 vmlinux = { git = "https://github.com/libbpf/libbpf-rs.git", branch = "master" }
-log= "0.4"
-libbpf-rs = {version = "0.23",default-features = false}
-libc = "0.2" 
-plain = "0.2.3" 
+log = "0.4"
+libbpf-rs = { version = "0.23", default-features = false }
+libc = "0.2"
+plain = "0.2.3"
 
 [workspace]
-members = [
-    "socket_filter",
-    "trace_conn"
-]
+members = ["socket_filter", "trace_conn", "cgroup_traffic"]
 resolver = "2"

@@ -42,5 +42,24 @@
             "args": [],
             "cwd": "${workspaceFolder}"
         },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug  'ex_cgroup_traffic'",
+            "cargo": {
+                "args": [
+                    "build",
+                    "--features=vendored",
+                    "--example=ex_cgroup_traffic",
+                    "--package=cgroup_traffic"
+                ],
+                "filter": {
+                    "name": "ex_cgroup_traffic",
+                    "kind": "example"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
     ]
 }

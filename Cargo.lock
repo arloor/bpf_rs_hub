@@ -135,6 +135,19 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "fd16c4719339c4530435d38e511904438d07cce7950afa3718a84ac36c10e89e"
 
 [[package]]
+name = "cgroup_traffic"
+version = "0.1.0"
+dependencies = [
+ "libbpf-cargo",
+ "libbpf-rs",
+ "libc",
+ "log",
+ "plain",
+ "pnet",
+ "vmlinux",
+]
+
+[[package]]
 name = "clap"
 version = "4.5.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -825,6 +838,11 @@ name = "utf8parse"
 version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "711b9620af191e0cdc7468a8d14e709c3dcdb115b36f838e601583af800a370a"
+
+[[package]]
+name = "vmlinux"
+version = "0.0.0"
+source = "git+https://github.com/libbpf/libbpf-rs.git?branch=master#598c2289e82c7a2bf2d249f2f217cdd8521d15ff"
 
 [[package]]
 name = "vsprintf"
