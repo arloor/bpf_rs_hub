@@ -708,6 +708,7 @@ dependencies = [
  "log",
  "plain",
  "pnet",
+ "vmlinux",
 ]
 
 [[package]]
@@ -815,6 +816,7 @@ dependencies = [
  "libc",
  "object",
  "plain",
+ "vmlinux",
 ]
 
 [[package]]
