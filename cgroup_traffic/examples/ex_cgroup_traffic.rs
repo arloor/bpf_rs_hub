@@ -4,7 +4,7 @@ use std::{thread::sleep, time::Duration};
 type DynError = Box<dyn std::error::Error>;
 
 pub fn main() -> Result<(), DynError> {
-    let cgroup_transmit_counter = cgroup_traffic::attach_self_cgroup()?;
+    let (cgroup_transmit_counter, _links) = cgroup_traffic::attach_self_cgroup()?;
     // let cgroup_transmit_counter = cgroup_traffic::attach_cgroup("/sys/fs/cgroup/system.slice/nginx.service")?;
     loop {
         println!(

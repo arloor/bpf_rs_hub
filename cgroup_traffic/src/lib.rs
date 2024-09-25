@@ -15,29 +15,21 @@ use prog::*;
 type DynError = Box<dyn std::error::Error>;
 
 pub struct CgroupTransmitCounter {
-    skel: Option<ProgramSkel<'static>>,
-    #[allow(dead_code)]
-    egress_link: Option<Link>,
-    #[allow(dead_code)]
-    ingress_link: Option<Link>,
+    skel: ProgramSkel<'static>,
 }
 
 struct Direction(u32);
 const EGRESS: Direction = Direction(0);
 const INGRESS: Direction = Direction(1);
-fn get(skel: &Option<ProgramSkel<'static>>, direction: Direction) -> u64 {
-    if let Some(skel) = skel {
-        let maps = skel.maps();
-        let map = maps.process_traffic();
-        let key = unsafe { plain::as_bytes(&direction.0) };
-        let mut value: u64 = 0;
-        if let Ok(Some(buf)) = map.lookup(key, MapFlags::ANY) {
-            plain::copy_from_bytes(&mut value, &buf).expect("Invalid buffer");
-        }
-        value
-    } else {
-        0
+fn get(skel: &ProgramSkel<'static>, direction: Direction) -> u64 {
+    let maps = skel.maps();
+    let map = maps.process_traffic();
+    let key = unsafe { plain::as_bytes(&direction.0) };
+    let mut value: u64 = 0;
+    if let Ok(Some(buf)) = map.lookup(key, MapFlags::ANY) {
+        plain::copy_from_bytes(&mut value, &buf).expect("Invalid buffer");
     }
+    value
 }
 
 impl CgroupTransmitCounter {
@@ -113,28 +105,14 @@ fn get_self_cgroup() -> io::Result<(String, Vec<i32>)> {
     ))
 }
 
-pub fn attach_self_cgroup() -> CgroupTransmitCounter {
-    match attach_self_cgroup_internal() {
-        Ok(counter) => counter,
-        Err(err) => {
-            log::error!("Failed to attach to self's cgroup: {}", err);
-            CgroupTransmitCounter {
-                skel: None,
-                egress_link: None,
-                ingress_link: None,
-            }
-        }
-    }
-}
-
-fn attach_self_cgroup_internal() -> Result<CgroupTransmitCounter, DynError> {
+pub fn attach_self_cgroup() -> Result<(CgroupTransmitCounter, Vec<Link>), DynError> {
     let cgroup = get_self_cgroup()?;
     log::info!("attach to self's cgroup: {}", cgroup.0);
     log::info!("self's cgroup contains: {:?}", cgroup.1);
     attach_cgroup(&cgroup.0)
 }
 
-pub fn attach_cgroup(path: &str) -> Result<CgroupTransmitCounter, DynError> {
+pub fn attach_cgroup(path: &str) -> Result<(CgroupTransmitCounter, Vec<Link>), DynError> {
     let mut skel_builder = ProgramSkelBuilder::default();
 
     skel_builder.obj_builder.debug(false);
@@ -156,9 +134,8 @@ pub fn attach_cgroup(path: &str) -> Result<CgroupTransmitCounter, DynError> {
     let mut progs: ProgramProgsMut<'_> = skel.progs_mut();
     let link_egress = progs.count_egress_packets().attach_cgroup(cgroup_fd)?;
     let link_ingress = progs.count_ingress_packets().attach_cgroup(cgroup_fd)?;
-    Ok(CgroupTransmitCounter {
-        skel: Some(skel),
-        egress_link: Some(link_egress),
-        ingress_link: Some(link_ingress),
-    })
+    Ok(
+        (CgroupTransmitCounter { skel },
+        vec![link_egress, link_ingress],
+    ))
 }
