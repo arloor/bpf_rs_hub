@@ -17,9 +17,7 @@ type DynError = Box<dyn std::error::Error>;
 pub struct CgroupTransmitCounter {
     skel: ProgramSkel<'static>,
     #[allow(dead_code)]
-    link_egress: Link,
-    #[allow(dead_code)]
-    link_ingress: Link,
+    links: Box<(Link, Link)>,
 }
 
 struct Direction(u32);
@@ -138,9 +136,6 @@ pub fn attach_cgroup(path: &str) -> Result<CgroupTransmitCounter, DynError> {
     let mut progs: ProgramProgsMut<'_> = skel.progs_mut();
     let link_egress = progs.count_egress_packets().attach_cgroup(cgroup_fd)?;
     let link_ingress = progs.count_ingress_packets().attach_cgroup(cgroup_fd)?;
-    Ok(CgroupTransmitCounter {
-        skel,
-        link_egress,
-        link_ingress,
-    })
+    let links = Box::new((link_egress, link_ingress));
+    Ok(CgroupTransmitCounter { skel, links })
 }
