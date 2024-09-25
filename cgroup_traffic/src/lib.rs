@@ -107,8 +107,11 @@ fn get_self_cgroup() -> io::Result<(String, Vec<i32>)> {
 
 pub fn attach_self_cgroup() -> Result<(CgroupTransmitCounter, Vec<Link>), DynError> {
     let cgroup = get_self_cgroup()?;
-    log::info!("attach to self's cgroup: {}", cgroup.0);
-    log::info!("self's cgroup contains: {:?}", cgroup.1);
+    log::info!(
+        "attach to self's cgroup: [ {} ], pids: {:?}",
+        cgroup.0,
+        cgroup.1
+    );
     attach_cgroup(&cgroup.0)
 }
 
@@ -134,8 +137,8 @@ pub fn attach_cgroup(path: &str) -> Result<(CgroupTransmitCounter, Vec<Link>), D
     let mut progs: ProgramProgsMut<'_> = skel.progs_mut();
     let link_egress = progs.count_egress_packets().attach_cgroup(cgroup_fd)?;
     let link_ingress = progs.count_ingress_packets().attach_cgroup(cgroup_fd)?;
-    Ok(
-        (CgroupTransmitCounter { skel },
+    Ok((
+        CgroupTransmitCounter { skel },
         vec![link_egress, link_ingress],
     ))
 }
