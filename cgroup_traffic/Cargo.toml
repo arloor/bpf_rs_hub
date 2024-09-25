@@ -1,6 +1,6 @@
 [package]
 name = "cgroup_traffic"
-version = "0.1.0"
+version = "0.1.1"
 authors = ["arloor <admin@arloor.com>"]
 edition = "2021"
 
@@ -20,11 +20,11 @@ pnet = "0.35"                                              # Rust library for lo
 log.workspace = true
 
 [build-dependencies]
-libbpf-cargo = { workspace = true } # Cargo plugin to build bpf programs
-vmlinux = { workspace = true ,optional = true}
+libbpf-cargo = { workspace = true }             # Cargo plugin to build bpf programs
+vmlinux = { workspace = true, optional = true }
 
 [features]
 default = ["libbpf-rs/default"]
 vendored = ["libbpf-rs/vendored"]
 static = ["libbpf-rs/static"]
-remote-vmlinux=["vmlinux"]
+remote-vmlinux = ["vmlinux"]
