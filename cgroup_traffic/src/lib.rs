@@ -59,7 +59,7 @@ fn bump_memlock_rlimit() -> Result<(), DynError> {
     Ok(())
 }
 
-pub fn start(path: &str) -> Result<CgroupTransmitCounter, DynError> {
+pub fn attach_cgroup(path: &str) -> Result<CgroupTransmitCounter, DynError> {
     let mut skel_builder = ProgramSkelBuilder::default();
 
     skel_builder.obj_builder.debug(true);
