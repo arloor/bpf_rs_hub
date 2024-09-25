@@ -6,7 +6,7 @@ struct
     __uint(type, BPF_MAP_TYPE_ARRAY);
     __type(key, u32);
     __type(value, u64);
-    __uint(max_entries, 1);
+    __uint(max_entries, 2);
 } process_traffic SEC(".maps");
 
 char __license[] SEC("license") = "Dual MIT/GPL";
@@ -21,7 +21,20 @@ int count_egress_packets(struct __sk_buff *skb)
     {
         __sync_fetch_and_add(value, skb->len);
     }
-    bpf_printk("Egress packet: %d\n", skb->len);
+
+    return 1;
+}
+
+SEC("cgroup_skb/ingress")
+int count_ingress_packets(struct __sk_buff *skb)
+{
+    __u32 key = 1; // ingress = 1
+
+    long *value = bpf_map_lookup_elem(&process_traffic, &key);
+    if (value)
+    {
+        __sync_fetch_and_add(value, skb->len);
+    }
 
     return 1;
 }

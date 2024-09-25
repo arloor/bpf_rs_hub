@@ -1,7 +1,7 @@
 #![deny(warnings)]
 use libbpf_rs::skel::{OpenSkel, SkelBuilder};
 // use object::{Object, ObjectSymbol};
-use libbpf_rs::MapFlags;
+use libbpf_rs::{Link, MapFlags};
 use std::os::fd::AsRawFd;
 
 mod prog {
@@ -14,23 +14,35 @@ use prog::*;
 
 type DynError = Box<dyn std::error::Error>;
 
-pub struct TransmitCounter {
+pub struct CgroupTransmitCounter {
     skel: ProgramSkel<'static>,
+    #[allow(dead_code)]
+    link_egress: Link,
+    #[allow(dead_code)]
+    link_ingress: Link,
 }
 
-impl TransmitCounter {
-    pub fn get_egress(&self) {
-        let maps = self.skel.maps();
-        let map = maps.process_traffic();
-        for ele in map.keys() {
-            let mut key: u32 = 0;
-            plain::copy_from_bytes(&mut key, &ele).expect("Invalid buffer");
-            let mut value: u64 = 0;
-            if let Ok(Some(buf)) = map.lookup(&ele, MapFlags::ANY) {
-                plain::copy_from_bytes(&mut value, &buf).expect("Invalid buffer");
-            }
-            println!("key: {}, value: {}", key, value);
-        }
+struct Direction(u32);
+const EGRESS: Direction = Direction(0);
+const INGRESS: Direction = Direction(1);
+fn get(skel: &ProgramSkel<'static>, direction: Direction) -> u64 {
+    let maps = skel.maps();
+    let map = maps.process_traffic();
+    let key = unsafe { plain::as_bytes(&direction.0) };
+    let mut value: u64 = 0;
+    if let Ok(Some(buf)) = map.lookup(key, MapFlags::ANY) {
+        plain::copy_from_bytes(&mut value, &buf).expect("Invalid buffer");
+    }
+    value
+}
+
+impl CgroupTransmitCounter {
+    pub fn get_egress(&self) -> u64 {
+        get(&self.skel, EGRESS)
+    }
+
+    pub fn get_ingress(&self) -> u64 {
+        get(&self.skel, INGRESS)
     }
 }
 
@@ -47,7 +59,7 @@ fn bump_memlock_rlimit() -> Result<(), DynError> {
     Ok(())
 }
 
-pub fn start(path: &str) -> Result<TransmitCounter, DynError> {
+pub fn start(path: &str) -> Result<CgroupTransmitCounter, DynError> {
     let mut skel_builder = ProgramSkelBuilder::default();
 
     skel_builder.obj_builder.debug(true);
@@ -66,11 +78,12 @@ pub fn start(path: &str) -> Result<TransmitCounter, DynError> {
         .write(false)
         .open(path)?;
     let cgroup_fd = f.as_raw_fd();
-    let mut a = skel.progs_mut();
-    let prog = a.count_egress_packets();
-    println!("prog name: {}", prog.name());
-    println!("prog name: {}", prog.attach_type());
-    println!("prog name: {}", prog.prog_type());
-    prog.attach_cgroup(cgroup_fd)?;
-    Ok(TransmitCounter { skel })
+    let mut progs: ProgramProgsMut<'_> = skel.progs_mut();
+    let link_egress = progs.count_egress_packets().attach_cgroup(cgroup_fd)?;
+    let link_ingress = progs.count_ingress_packets().attach_cgroup(cgroup_fd)?;
+    Ok(CgroupTransmitCounter {
+        skel,
+        link_egress,
+        link_ingress,
+    })
 }

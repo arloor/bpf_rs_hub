@@ -1,13 +1,17 @@
 #![deny(warnings)]
-use std::time::Duration;
+use std::{thread::sleep, time::Duration};
 
 use cgroup_traffic::start;
 type DynError = Box<dyn std::error::Error>;
 
 pub fn main() -> Result<(), DynError> {
-    let transmit_counter = start("/sys/fs/cgroup/unified/c")?;
+    let cgroup_transmit_counter = start("/sys/fs/cgroup/system.slice/nginx.service")?;
     loop {
-        transmit_counter.get_egress();
-        std::thread::sleep(Duration::from_secs(1));
+        println!(
+            "current bytes: {} {}",
+            cgroup_transmit_counter.get_egress(),
+            cgroup_transmit_counter.get_ingress()
+        );
+        sleep(Duration::from_secs(1));
     }
 }
