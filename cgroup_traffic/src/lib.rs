@@ -59,10 +59,67 @@ fn bump_memlock_rlimit() -> Result<(), DynError> {
     Ok(())
 }
 
+use std::fs::File;
+use std::io::{self, BufRead, Read};
+use std::path::Path;
+
+fn list_pids_in_cgroup(cgroup_path: &str) -> io::Result<Vec<i32>> {
+    let procs_path = Path::new(cgroup_path).join("cgroup.procs");
+    let mut file = File::open(procs_path)?;
+    let mut content = String::new();
+    file.read_to_string(&mut content)?;
+
+    let pids = content
+        .lines()
+        .filter_map(|line| line.parse::<i32>().ok())
+        .collect();
+
+    Ok(pids)
+}
+
+fn get_self_cgroup() -> io::Result<(String, Vec<i32>)> {
+    let cgroup_dir = Path::new("/sys/fs/cgroup");
+    if !cgroup_dir.exists() {
+        return Err(io::Error::new(
+            io::ErrorKind::NotFound,
+            "/sys/fs/cgroup directory does not exist",
+        ));
+    }
+
+    let path = Path::new("/proc/self/cgroup");
+    let file = File::open(path)?;
+    let reader = io::BufReader::new(file);
+
+    for line in reader.lines() {
+        let line = line?;
+        if line.contains("0::") {
+            let parts: Vec<&str> = line.split("::").collect();
+            if parts.len() == 2 {
+                let cgroup_path = cgroup_dir.join(parts[1].trim_start_matches('/'));
+                let cgroup_path = cgroup_path.to_string_lossy().into_owned();
+                let pids = list_pids_in_cgroup(&cgroup_path)?;
+                return Ok((cgroup_path, pids));
+            }
+        }
+    }
+
+    Err(io::Error::new(
+        io::ErrorKind::NotFound,
+        "Cgroup path not found",
+    ))
+}
+
+pub fn attach_self_cgroup() -> Result<CgroupTransmitCounter, DynError> {
+    let cgroup = get_self_cgroup()?;
+    log::info!("attach to self's cgroup: {}", cgroup.0);
+    log::info!("self's cgroup contains: {:?}", cgroup.1);
+    attach_cgroup(&cgroup.0)
+}
+
 pub fn attach_cgroup(path: &str) -> Result<CgroupTransmitCounter, DynError> {
     let mut skel_builder = ProgramSkelBuilder::default();
 
-    skel_builder.obj_builder.debug(true);
+    skel_builder.obj_builder.debug(false);
 
     bump_memlock_rlimit()?;
     let open_skel = skel_builder.open()?;
