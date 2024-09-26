@@ -86,12 +86,12 @@ pub fn init_self_cgroup_skb_monitor() -> Result<CgroupTransmitCounter, Box<dyn s
         cgroup.0,
         cgroup.1
     );
-    let f = std::fs::OpenOptions::new()
+    let file = std::fs::OpenOptions::new()
         .read(true)
         .write(false)
-        .open(cgroup.0)?;
+        .open(cgroup.0)?; // a standalone line, to make `file` leave longer.
     use std::os::fd::AsRawFd;
-    let cgroup_fd = f.as_raw_fd();
+    let cgroup_fd = file.as_raw_fd();
     let progs = &mut cgroup_transmit_counter.skel.progs;
     let link_egress = progs.count_egress_packets.attach_cgroup(cgroup_fd)?;
     Box::leak(Box::new(link_egress)); // leak it to make it 'static, so our bpf prog lives 'static
