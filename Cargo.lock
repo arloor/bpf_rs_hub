@@ -138,8 +138,8 @@ checksum = "fd16c4719339c4530435d38e511904438d07cce7950afa3718a84ac36c10e89e"
 name = "cgroup_traffic"
 version = "0.1.1"
 dependencies = [
- "libbpf-cargo",
- "libbpf-rs",
+ "libbpf-cargo 0.23.2",
+ "libbpf-rs 0.23.2",
  "libc",
  "log",
  "plain",
@@ -309,12 +309,30 @@ dependencies = [
  "anyhow",
  "cargo_metadata",
  "clap",
- "libbpf-rs",
+ "libbpf-rs 0.23.2",
  "memmap2",
  "num_enum",
  "regex",
  "scroll",
  "scroll_derive",
+ "semver",
+ "serde",
+ "serde_json",
+ "tempfile",
+]
+
+[[package]]
+name = "libbpf-cargo"
+version = "0.24.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e42b7b9b2836b25dd7a0e5ff3c2ec0e029a99b3025bfbef0202b55875654b45b"
+dependencies = [
+ "anyhow",
+ "cargo_metadata",
+ "clap",
+ "libbpf-rs 0.24.4",
+ "memmap2",
+ "regex",
  "semver",
  "serde",
  "serde_json",
@@ -333,6 +351,18 @@ dependencies = [
  "num_enum",
  "strum_macros",
  "thiserror",
+ "vsprintf",
+]
+
+[[package]]
+name = "libbpf-rs"
+version = "0.24.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d51b943363864472bf306570a7076cbfa84571a403b98f59d18af4c4135271ca"
+dependencies = [
+ "bitflags",
+ "libbpf-sys",
+ "libc",
  "vsprintf",
 ]
 
@@ -702,8 +732,8 @@ dependencies = [
 name = "socket_filter"
 version = "0.1.0"
 dependencies = [
- "libbpf-cargo",
- "libbpf-rs",
+ "libbpf-cargo 0.23.2",
+ "libbpf-rs 0.23.2",
  "libc",
  "log",
  "plain",
@@ -811,8 +841,8 @@ dependencies = [
 name = "trace_conn"
 version = "0.1.0"
 dependencies = [
- "libbpf-cargo 0.23.2",
- "libbpf-rs 0.23.2",
+ "libbpf-cargo 0.24.4",
+ "libbpf-rs 0.24.4",
  "libc",
  "object",
  "plain",
