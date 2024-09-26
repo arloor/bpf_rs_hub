@@ -1,12 +1,28 @@
 #![deny(warnings)]
-use std::{mem::MaybeUninit, thread::sleep, time::Duration};
+use std::{mem::MaybeUninit, os::fd::AsRawFd, thread::sleep, time::Duration};
+
+use cgroup_traffic::get_self_cgroup;
 
 type DynError = Box<dyn std::error::Error>;
 
 pub fn main() -> Result<(), DynError> {
-    let open_object = Box::leak(Box::new(MaybeUninit::uninit()));
-    let (cgroup_transmit_counter, _links) = cgroup_traffic::attach_self_cgroup(open_object)?;
-    // let cgroup_transmit_counter = cgroup_traffic::attach_cgroup("/sys/fs/cgroup/system.slice/nginx.service")?;
+    let open_object = Box::leak(Box::new(MaybeUninit::uninit())); // make it live forever, so that this program won't drop
+    let mut cgroup_transmit_counter = cgroup_traffic::attach_self_cgroup(open_object)?;
+    let cgroup = get_self_cgroup()?;
+    println!(
+        "attach to self's cgroup: [ {} ], pids: {:?}",
+        cgroup.0, cgroup.1
+    );
+    let f = std::fs::OpenOptions::new()
+        .read(true)
+        .write(false)
+        .open(cgroup.0)?; // standalone line, to make file live longer
+    let cgroup_fd = f.as_raw_fd();
+    let progs = &mut cgroup_transmit_counter.skel.progs;
+    let link_egress = progs.count_egress_packets.attach_cgroup(cgroup_fd)?;
+    Box::leak(Box::new(link_egress)); // make link live forever, so that this program won't dettach cgroup
+    let link_ingress = progs.count_ingress_packets.attach_cgroup(cgroup_fd)?;
+    Box::leak(Box::new(link_ingress)); // make link live forever, so that this program won't dettach cgroup
     loop {
         println!(
             "current bytes: {} {}",
