@@ -8,8 +8,8 @@ pub use self::imp::*;
 #[allow(non_snake_case)]
 #[allow(non_camel_case_types)]
 #[allow(clippy::absolute_paths)]
-#[allow(clippy::transmute_ptr_to_ref)]
 #[allow(clippy::upper_case_acronyms)]
+#[allow(clippy::zero_repeat_side_effects)]
 #[warn(single_use_lifetimes)]
 mod imp {
     #[allow(unused_imports)]
@@ -18,7 +18,8 @@ mod imp {
     use libbpf_rs::skel::OpenSkel;
     use libbpf_rs::skel::Skel;
     use libbpf_rs::skel::SkelBuilder;
-
+    use libbpf_rs::AsRawLibbpf as _;
+    use libbpf_rs::MapCore as _;
     fn build_skel_config(
     ) -> libbpf_rs::Result<libbpf_rs::__internal_skel::ObjectSkeletonConfig<'static>> {
         let mut builder = libbpf_rs::__internal_skel::ObjectSkeletonConfigBuilder::new(DATA);
@@ -34,8 +35,279 @@ mod imp {
             .prog("getaddrinfo_exit")
             .prog("tcp_v4_connect_enter")
             .prog("tcp_v4_connect_exit");
-
         builder.build()
+    }
+    pub struct OpenTraceconMaps<'obj> {
+        pub lookups: libbpf_rs::OpenMapMut<'obj>,
+        pub hostnames: libbpf_rs::OpenMapMut<'obj>,
+        pub sockets: libbpf_rs::OpenMapMut<'obj>,
+        pub events: libbpf_rs::OpenMapMut<'obj>,
+        pub rodata: libbpf_rs::OpenMapMut<'obj>,
+        pub rodata_data: &'obj mut types::rodata,
+        pub bss: libbpf_rs::OpenMapMut<'obj>,
+        pub bss_data: &'obj mut types::bss,
+        _phantom: std::marker::PhantomData<&'obj ()>,
+    }
+
+    impl<'obj> OpenTraceconMaps<'obj> {
+        #[allow(unused_variables)]
+        unsafe fn new(
+            config: &libbpf_rs::__internal_skel::ObjectSkeletonConfig<'_>,
+            object: &mut libbpf_rs::OpenObject,
+        ) -> libbpf_rs::Result<Self> {
+            let mut lookups = None;
+            let mut hostnames = None;
+            let mut sockets = None;
+            let mut events = None;
+            let mut rodata = None;
+            let mut bss = None;
+            let object = unsafe {
+                std::mem::transmute::<&mut libbpf_rs::OpenObject, &'obj mut libbpf_rs::OpenObject>(
+                    object,
+                )
+            };
+            #[allow(clippy::never_loop)]
+            for map in object.maps_mut() {
+                let name = map.name().to_str().ok_or_else(|| {
+                    libbpf_rs::Error::from(std::io::Error::new(
+                        std::io::ErrorKind::InvalidData,
+                        "map has invalid name",
+                    ))
+                })?;
+                #[allow(clippy::match_single_binding)]
+                match name {
+                    "lookups" => lookups = Some(map),
+                    "hostnames" => hostnames = Some(map),
+                    "sockets" => sockets = Some(map),
+                    "events" => events = Some(map),
+                    "tracecon.rodata" => rodata = Some(map),
+                    "tracecon.bss" => bss = Some(map),
+                    _ => panic!("encountered unexpected map: `{name}`"),
+                }
+            }
+
+            let slf = Self {
+                lookups: lookups.expect("map `lookups` not present"),
+                hostnames: hostnames.expect("map `hostnames` not present"),
+                sockets: sockets.expect("map `sockets` not present"),
+                events: events.expect("map `events` not present"),
+                rodata: rodata.expect("map `rodata` not present"),
+                rodata_data: unsafe {
+                    config
+                        .map_mmap_ptr(4)
+                        .expect("BPF map `rodata` does not have mmap pointer")
+                        .cast::<types::rodata>()
+                        .as_mut()
+                        .expect("BPF map `rodata` mmap pointer is NULL")
+                },
+                bss: bss.expect("map `bss` not present"),
+                bss_data: unsafe {
+                    config
+                        .map_mmap_ptr(5)
+                        .expect("BPF map `bss` does not have mmap pointer")
+                        .cast::<types::bss>()
+                        .as_mut()
+                        .expect("BPF map `bss` mmap pointer is NULL")
+                },
+                _phantom: std::marker::PhantomData,
+            };
+            Ok(slf)
+        }
+    }
+    pub struct TraceconMaps<'obj> {
+        pub lookups: libbpf_rs::MapMut<'obj>,
+        pub hostnames: libbpf_rs::MapMut<'obj>,
+        pub sockets: libbpf_rs::MapMut<'obj>,
+        pub events: libbpf_rs::MapMut<'obj>,
+        pub rodata: libbpf_rs::MapMut<'obj>,
+        pub rodata_data: &'obj types::rodata,
+        pub bss: libbpf_rs::MapMut<'obj>,
+        pub bss_data: &'obj mut types::bss,
+        _phantom: std::marker::PhantomData<&'obj ()>,
+    }
+
+    impl<'obj> TraceconMaps<'obj> {
+        #[allow(unused_variables)]
+        unsafe fn new(
+            config: &libbpf_rs::__internal_skel::ObjectSkeletonConfig<'_>,
+            object: &mut libbpf_rs::Object,
+        ) -> libbpf_rs::Result<Self> {
+            let mut lookups = None;
+            let mut hostnames = None;
+            let mut sockets = None;
+            let mut events = None;
+            let mut rodata = None;
+            let mut bss = None;
+            let object = unsafe {
+                std::mem::transmute::<&mut libbpf_rs::Object, &'obj mut libbpf_rs::Object>(object)
+            };
+            #[allow(clippy::never_loop)]
+            for map in object.maps_mut() {
+                let name = map.name().to_str().ok_or_else(|| {
+                    libbpf_rs::Error::from(std::io::Error::new(
+                        std::io::ErrorKind::InvalidData,
+                        "map has invalid name",
+                    ))
+                })?;
+                #[allow(clippy::match_single_binding)]
+                match name {
+                    "lookups" => lookups = Some(map),
+                    "hostnames" => hostnames = Some(map),
+                    "sockets" => sockets = Some(map),
+                    "events" => events = Some(map),
+                    "tracecon.rodata" => rodata = Some(map),
+                    "tracecon.bss" => bss = Some(map),
+                    _ => panic!("encountered unexpected map: `{name}`"),
+                }
+            }
+
+            let slf = Self {
+                lookups: lookups.expect("map `lookups` not present"),
+                hostnames: hostnames.expect("map `hostnames` not present"),
+                sockets: sockets.expect("map `sockets` not present"),
+                events: events.expect("map `events` not present"),
+                rodata: rodata.expect("map `rodata` not present"),
+                rodata_data: unsafe {
+                    config
+                        .map_mmap_ptr(4)
+                        .expect("BPF map `rodata` does not have mmap pointer")
+                        .cast::<types::rodata>()
+                        .as_ref()
+                        .expect("BPF map `rodata` mmap pointer is NULL")
+                },
+                bss: bss.expect("map `bss` not present"),
+                bss_data: unsafe {
+                    config
+                        .map_mmap_ptr(5)
+                        .expect("BPF map `bss` does not have mmap pointer")
+                        .cast::<types::bss>()
+                        .as_mut()
+                        .expect("BPF map `bss` mmap pointer is NULL")
+                },
+                _phantom: std::marker::PhantomData,
+            };
+            Ok(slf)
+        }
+    }
+    pub struct OpenTraceconProgs<'obj> {
+        pub getaddrinfo_enter: libbpf_rs::OpenProgramMut<'obj>,
+        pub getaddrinfo_exit: libbpf_rs::OpenProgramMut<'obj>,
+        pub tcp_v4_connect_enter: libbpf_rs::OpenProgramMut<'obj>,
+        pub tcp_v4_connect_exit: libbpf_rs::OpenProgramMut<'obj>,
+        _phantom: std::marker::PhantomData<&'obj ()>,
+    }
+
+    impl<'obj> OpenTraceconProgs<'obj> {
+        unsafe fn new(object: &mut libbpf_rs::OpenObject) -> libbpf_rs::Result<Self> {
+            let mut getaddrinfo_enter = None;
+            let mut getaddrinfo_exit = None;
+            let mut tcp_v4_connect_enter = None;
+            let mut tcp_v4_connect_exit = None;
+            let object = unsafe {
+                std::mem::transmute::<&mut libbpf_rs::OpenObject, &'obj mut libbpf_rs::OpenObject>(
+                    object,
+                )
+            };
+            for prog in object.progs_mut() {
+                let name = prog.name().to_str().ok_or_else(|| {
+                    libbpf_rs::Error::from(std::io::Error::new(
+                        std::io::ErrorKind::InvalidData,
+                        "prog has invalid name",
+                    ))
+                })?;
+                match name {
+                    "getaddrinfo_enter" => getaddrinfo_enter = Some(prog),
+                    "getaddrinfo_exit" => getaddrinfo_exit = Some(prog),
+                    "tcp_v4_connect_enter" => tcp_v4_connect_enter = Some(prog),
+                    "tcp_v4_connect_exit" => tcp_v4_connect_exit = Some(prog),
+                    _ => panic!("encountered unexpected prog: `{name}`"),
+                }
+            }
+
+            let slf = Self {
+                getaddrinfo_enter: getaddrinfo_enter.expect("prog `getaddrinfo_enter` not present"),
+                getaddrinfo_exit: getaddrinfo_exit.expect("prog `getaddrinfo_exit` not present"),
+                tcp_v4_connect_enter: tcp_v4_connect_enter
+                    .expect("prog `tcp_v4_connect_enter` not present"),
+                tcp_v4_connect_exit: tcp_v4_connect_exit
+                    .expect("prog `tcp_v4_connect_exit` not present"),
+                _phantom: std::marker::PhantomData,
+            };
+            Ok(slf)
+        }
+    }
+    pub struct TraceconProgs<'obj> {
+        pub getaddrinfo_enter: libbpf_rs::ProgramMut<'obj>,
+        pub getaddrinfo_exit: libbpf_rs::ProgramMut<'obj>,
+        pub tcp_v4_connect_enter: libbpf_rs::ProgramMut<'obj>,
+        pub tcp_v4_connect_exit: libbpf_rs::ProgramMut<'obj>,
+        _phantom: std::marker::PhantomData<&'obj ()>,
+    }
+
+    impl<'obj> TraceconProgs<'obj> {
+        #[allow(unused_variables)]
+        fn new(open_progs: OpenTraceconProgs<'obj>) -> Self {
+            Self {
+                getaddrinfo_enter: unsafe {
+                    libbpf_rs::ProgramMut::new_mut(
+                        open_progs.getaddrinfo_enter.as_libbpf_object().as_mut(),
+                    )
+                },
+                getaddrinfo_exit: unsafe {
+                    libbpf_rs::ProgramMut::new_mut(
+                        open_progs.getaddrinfo_exit.as_libbpf_object().as_mut(),
+                    )
+                },
+                tcp_v4_connect_enter: unsafe {
+                    libbpf_rs::ProgramMut::new_mut(
+                        open_progs.tcp_v4_connect_enter.as_libbpf_object().as_mut(),
+                    )
+                },
+                tcp_v4_connect_exit: unsafe {
+                    libbpf_rs::ProgramMut::new_mut(
+                        open_progs.tcp_v4_connect_exit.as_libbpf_object().as_mut(),
+                    )
+                },
+                _phantom: std::marker::PhantomData,
+            }
+        }
+    }
+    struct OwnedRef<'obj, O> {
+        object: Option<&'obj mut std::mem::MaybeUninit<O>>,
+    }
+
+    impl<'obj, O> OwnedRef<'obj, O> {
+        /// # Safety
+        /// The object has to be initialized.
+        unsafe fn new(object: &'obj mut std::mem::MaybeUninit<O>) -> Self {
+            Self {
+                object: Some(object),
+            }
+        }
+
+        fn as_ref(&self) -> &O {
+            // SAFETY: As per the contract during construction, the
+            //         object has to be initialized.
+            unsafe { self.object.as_ref().unwrap().assume_init_ref() }
+        }
+
+        fn as_mut(&mut self) -> &mut O {
+            // SAFETY: As per the contract during construction, the
+            //         object has to be initialized.
+            unsafe { self.object.as_mut().unwrap().assume_init_mut() }
+        }
+
+        fn take(mut self) -> &'obj mut std::mem::MaybeUninit<O> {
+            self.object.take().unwrap()
+        }
+    }
+
+    impl<O> Drop for OwnedRef<'_, O> {
+        fn drop(&mut self) {
+            if let Some(object) = &mut self.object {
+                unsafe { object.assume_init_drop() }
+            }
+        }
     }
 
     #[derive(Default)]
@@ -43,30 +315,39 @@ mod imp {
         pub obj_builder: libbpf_rs::ObjectBuilder,
     }
 
-    impl<'a> SkelBuilder<'a> for TraceconSkelBuilder {
-        type Output = OpenTraceconSkel<'a>;
-        fn open(self) -> libbpf_rs::Result<OpenTraceconSkel<'a>> {
-            let opts = *self.obj_builder.opts();
-            self.open_opts(opts)
-        }
-
-        fn open_opts(
+    impl<'obj> TraceconSkelBuilder {
+        fn open_opts_impl(
             self,
-            open_opts: libbpf_sys::bpf_object_open_opts,
-        ) -> libbpf_rs::Result<OpenTraceconSkel<'a>> {
-            let mut skel_config = build_skel_config()?;
+            open_opts: *const libbpf_sys::bpf_object_open_opts,
+            object: &'obj mut std::mem::MaybeUninit<libbpf_rs::OpenObject>,
+        ) -> libbpf_rs::Result<OpenTraceconSkel<'obj>> {
+            let skel_config = build_skel_config()?;
+            let skel_ptr = skel_config.as_libbpf_object();
 
             let ret =
-                unsafe { libbpf_sys::bpf_object__open_skeleton(skel_config.get(), &open_opts) };
+                unsafe { libbpf_sys::bpf_object__open_skeleton(skel_ptr.as_ptr(), open_opts) };
             if ret != 0 {
                 return Err(libbpf_rs::Error::from_raw_os_error(-ret));
             }
 
-            let obj = unsafe { libbpf_rs::OpenObject::from_ptr(skel_config.object_ptr())? };
+            // SAFETY: `skel_ptr` points to a valid object after the
+            //         open call.
+            let obj_ptr = unsafe { *skel_ptr.as_ref().obj };
+            // SANITY: `bpf_object__open_skeleton` should have
+            //         allocated the object.
+            let obj_ptr = std::ptr::NonNull::new(obj_ptr).unwrap();
+            // SAFETY: `obj_ptr` points to an opened object after
+            //         skeleton open.
+            let obj = unsafe { libbpf_rs::OpenObject::from_ptr(obj_ptr) };
+            let _obj = object.write(obj);
+            // SAFETY: We just wrote initialized data to `object`.
+            let mut obj_ref = unsafe { OwnedRef::new(object) };
 
             #[allow(unused_mut)]
             let mut skel = OpenTraceconSkel {
-                obj,
+                maps: unsafe { OpenTraceconMaps::new(&skel_config, obj_ref.as_mut())? },
+                progs: unsafe { OpenTraceconProgs::new(obj_ref.as_mut())? },
+                obj: obj_ref,
                 // SAFETY: Our `struct_ops` type contains only pointers,
                 //         which are allowed to be NULL.
                 // TODO: Generate and use a `Default` representation
@@ -77,6 +358,24 @@ mod imp {
 
             Ok(skel)
         }
+    }
+
+    impl<'obj> SkelBuilder<'obj> for TraceconSkelBuilder {
+        type Output = OpenTraceconSkel<'obj>;
+        fn open(
+            self,
+            object: &'obj mut std::mem::MaybeUninit<libbpf_rs::OpenObject>,
+        ) -> libbpf_rs::Result<OpenTraceconSkel<'obj>> {
+            self.open_opts_impl(std::ptr::null(), object)
+        }
+
+        fn open_opts(
+            self,
+            open_opts: libbpf_sys::bpf_object_open_opts,
+            object: &'obj mut std::mem::MaybeUninit<libbpf_rs::OpenObject>,
+        ) -> libbpf_rs::Result<OpenTraceconSkel<'obj>> {
+            self.open_opts_impl(&open_opts, object)
+        }
 
         fn object_builder(&self) -> &libbpf_rs::ObjectBuilder {
             &self.obj_builder
@@ -86,113 +385,2764 @@ mod imp {
         }
     }
 
-    pub struct OpenTraceconMapsMut<'a> {
-        inner: &'a mut libbpf_rs::OpenObject,
-    }
+    #[derive(Debug, Clone)]
+    #[repr(C)]
+    pub struct StructOps {}
 
-    impl OpenTraceconMapsMut<'_> {
-        pub fn lookups(&mut self) -> &mut libbpf_rs::OpenMap {
-            self.inner.map_mut("lookups").unwrap()
-        }
-
-        pub fn hostnames(&mut self) -> &mut libbpf_rs::OpenMap {
-            self.inner.map_mut("hostnames").unwrap()
-        }
-
-        pub fn sockets(&mut self) -> &mut libbpf_rs::OpenMap {
-            self.inner.map_mut("sockets").unwrap()
-        }
-
-        pub fn events(&mut self) -> &mut libbpf_rs::OpenMap {
-            self.inner.map_mut("events").unwrap()
-        }
-
-        pub fn rodata(&mut self) -> &mut libbpf_rs::OpenMap {
-            self.inner.map_mut("tracecon.rodata").unwrap()
-        }
-
-        pub fn bss(&mut self) -> &mut libbpf_rs::OpenMap {
-            self.inner.map_mut("tracecon.bss").unwrap()
-        }
-    }
-
-    pub struct OpenTraceconMaps<'a> {
-        inner: &'a libbpf_rs::OpenObject,
-    }
-
-    impl OpenTraceconMaps<'_> {
-        pub fn lookups(&self) -> &libbpf_rs::OpenMap {
-            self.inner.map("lookups").unwrap()
-        }
-
-        pub fn hostnames(&self) -> &libbpf_rs::OpenMap {
-            self.inner.map("hostnames").unwrap()
-        }
-
-        pub fn sockets(&self) -> &libbpf_rs::OpenMap {
-            self.inner.map("sockets").unwrap()
-        }
-
-        pub fn events(&self) -> &libbpf_rs::OpenMap {
-            self.inner.map("events").unwrap()
-        }
-
-        pub fn rodata(&self) -> &libbpf_rs::OpenMap {
-            self.inner.map("tracecon.rodata").unwrap()
-        }
-
-        pub fn bss(&self) -> &libbpf_rs::OpenMap {
-            self.inner.map("tracecon.bss").unwrap()
-        }
-    }
-
-    pub struct OpenTraceconProgs<'a> {
-        inner: &'a libbpf_rs::OpenObject,
-    }
-
-    impl OpenTraceconProgs<'_> {
-        pub fn getaddrinfo_enter(&self) -> &libbpf_rs::OpenProgram {
-            self.inner.prog("getaddrinfo_enter").unwrap()
-        }
-
-        pub fn getaddrinfo_exit(&self) -> &libbpf_rs::OpenProgram {
-            self.inner.prog("getaddrinfo_exit").unwrap()
-        }
-
-        pub fn tcp_v4_connect_enter(&self) -> &libbpf_rs::OpenProgram {
-            self.inner.prog("tcp_v4_connect_enter").unwrap()
-        }
-
-        pub fn tcp_v4_connect_exit(&self) -> &libbpf_rs::OpenProgram {
-            self.inner.prog("tcp_v4_connect_exit").unwrap()
-        }
-    }
-
-    pub struct OpenTraceconProgsMut<'a> {
-        inner: &'a mut libbpf_rs::OpenObject,
-    }
-
-    impl OpenTraceconProgsMut<'_> {
-        pub fn getaddrinfo_enter(&mut self) -> &mut libbpf_rs::OpenProgram {
-            self.inner.prog_mut("getaddrinfo_enter").unwrap()
-        }
-
-        pub fn getaddrinfo_exit(&mut self) -> &mut libbpf_rs::OpenProgram {
-            self.inner.prog_mut("getaddrinfo_exit").unwrap()
-        }
-
-        pub fn tcp_v4_connect_enter(&mut self) -> &mut libbpf_rs::OpenProgram {
-            self.inner.prog_mut("tcp_v4_connect_enter").unwrap()
-        }
-
-        pub fn tcp_v4_connect_exit(&mut self) -> &mut libbpf_rs::OpenProgram {
-            self.inner.prog_mut("tcp_v4_connect_exit").unwrap()
-        }
-    }
-
-    pub mod tracecon_types {
+    impl StructOps {}
+    pub mod types {
         #[allow(unused_imports)]
         use super::*;
+        #[derive(Debug, Copy, Clone)]
+        #[repr(C)]
+        pub struct lookup {
+            pub c: [i8; 84],
+            pub __pad_84: [u8; 4],
+            pub results: *mut *mut std::ffi::c_void,
+        }
+        impl Default for lookup {
+            fn default() -> Self {
+                Self {
+                    c: [i8::default(); 84],
+                    __pad_84: [u8::default(); 4],
+                    results: std::ptr::null_mut(),
+                }
+            }
+        }
+        #[derive(Debug, Copy, Clone)]
+        #[repr(C)]
+        pub struct __anon_1 {
+            pub r#type: *mut [i32; 1],
+            pub max_entries: *mut [i32; 10240],
+            pub key: *mut u32,
+            pub value: *mut lookup,
+        }
+        impl Default for __anon_1 {
+            fn default() -> Self {
+                Self {
+                    r#type: std::ptr::null_mut(),
+                    max_entries: std::ptr::null_mut(),
+                    key: std::ptr::null_mut(),
+                    value: std::ptr::null_mut(),
+                }
+            }
+        }
+        #[derive(Debug, Copy, Clone)]
+        #[repr(C)]
+        pub struct sock {
+            pub __sk_common: sock_common,
+            pub sk_rx_dst: *mut std::ffi::c_void,
+            pub sk_rx_dst_ifindex: i32,
+            pub sk_rx_dst_cookie: u32,
+            pub sk_lock: __anon_2,
+            pub sk_drops: __anon_3,
+            pub sk_rcvlowat: i32,
+            pub sk_error_queue: sk_buff_head,
+            pub sk_receive_queue: sk_buff_head,
+            pub sk_backlog: __anon_4,
+            pub defer_list: llist_head,
+            pub sk_forward_alloc: i32,
+            pub sk_reserved_mem: u32,
+            pub sk_ll_usec: u32,
+            pub sk_napi_id: u32,
+            pub sk_rcvbuf: i32,
+            pub sk_wait_pending: i32,
+            pub sk_filter: *mut std::ffi::c_void,
+            pub __anon_5: __anon_5,
+            pub sk_policy: [*mut xfrm_policy; 2],
+            pub sk_dst_cache: *mut std::ffi::c_void,
+            pub sk_omem_alloc: __anon_3,
+            pub sk_sndbuf: i32,
+            pub sk_wmem_queued: i32,
+            pub sk_wmem_alloc: refcount_struct,
+            pub sk_tsq_flags: u64,
+            pub __anon_6: __anon_6,
+            pub sk_write_queue: sk_buff_head,
+            pub sk_peek_off: i32,
+            pub sk_write_pending: i32,
+            pub sk_dst_pending_confirm: u32,
+            pub sk_pacing_status: u32,
+            pub sk_sndtimeo: i64,
+            pub sk_timer: timer_list,
+            pub sk_priority: u32,
+            pub sk_mark: u32,
+            pub sk_pacing_rate: u64,
+            pub sk_max_pacing_rate: u64,
+            pub sk_frag: page_frag,
+            pub sk_route_caps: u64,
+            pub sk_gso_type: i32,
+            pub sk_gso_max_size: u32,
+            pub sk_allocation: u32,
+            pub sk_txhash: u32,
+            pub __pad_536: [u8; 1],
+            pub sk_pacing_shift: u8,
+            pub sk_type: u16,
+            pub sk_protocol: u16,
+            pub sk_gso_max_segs: u16,
+            pub sk_lingertime: u64,
+            pub sk_prot_creator: *mut std::ffi::c_void,
+            pub sk_callback_lock: __anon_7,
+            pub sk_err: i32,
+            pub sk_err_soft: i32,
+            pub sk_ack_backlog: u32,
+            pub sk_max_ack_backlog: u32,
+            pub sk_uid: __anon_8,
+            pub sk_txrehash: u8,
+            pub sk_prefer_busy_poll: u8,
+            pub sk_busy_poll_budget: u16,
+            pub sk_peer_lock: spinlock,
+            pub sk_bind_phc: i32,
+            pub sk_peer_pid: *mut std::ffi::c_void,
+            pub sk_peer_cred: *mut cred,
+            pub sk_rcvtimeo: i64,
+            pub sk_stamp: i64,
+            pub sk_tsflags: u16,
+            pub sk_shutdown: u8,
+            pub sk_tskey: __anon_3,
+            pub sk_zckey: __anon_3,
+            pub sk_clockid: u8,
+            pub __pad_645: [u8; 1],
+            pub sk_use_task_frag: std::mem::MaybeUninit<bool>,
+            pub sk_socket: *mut std::ffi::c_void,
+            pub sk_user_data: *mut std::ffi::c_void,
+            pub sk_security: *mut std::ffi::c_void,
+            pub sk_cgrp_data: sock_cgroup_data,
+            pub sk_memcg: *mut std::ffi::c_void,
+            pub sk_state_change: *mut std::ffi::c_void,
+            pub sk_data_ready: *mut std::ffi::c_void,
+            pub sk_write_space: *mut std::ffi::c_void,
+            pub sk_error_report: *mut std::ffi::c_void,
+            pub sk_backlog_rcv: *mut std::ffi::c_void,
+            pub sk_validate_xmit_skb: *mut std::ffi::c_void,
+            pub sk_destruct: *mut std::ffi::c_void,
+            pub sk_reuseport_cb: *mut std::ffi::c_void,
+            pub sk_bpf_storage: *mut std::ffi::c_void,
+            pub sk_rcu: callback_head,
+            pub ns_tracker: __anon_9,
+        }
+        impl Default for sock {
+            fn default() -> Self {
+                Self {
+                    __sk_common: sock_common::default(),
+                    sk_rx_dst: std::ptr::null_mut(),
+                    sk_rx_dst_ifindex: i32::default(),
+                    sk_rx_dst_cookie: u32::default(),
+                    sk_lock: __anon_2::default(),
+                    sk_drops: __anon_3::default(),
+                    sk_rcvlowat: i32::default(),
+                    sk_error_queue: sk_buff_head::default(),
+                    sk_receive_queue: sk_buff_head::default(),
+                    sk_backlog: __anon_4::default(),
+                    defer_list: llist_head::default(),
+                    sk_forward_alloc: i32::default(),
+                    sk_reserved_mem: u32::default(),
+                    sk_ll_usec: u32::default(),
+                    sk_napi_id: u32::default(),
+                    sk_rcvbuf: i32::default(),
+                    sk_wait_pending: i32::default(),
+                    sk_filter: std::ptr::null_mut(),
+                    __anon_5: __anon_5::default(),
+                    sk_policy: [std::ptr::null_mut(); 2],
+                    sk_dst_cache: std::ptr::null_mut(),
+                    sk_omem_alloc: __anon_3::default(),
+                    sk_sndbuf: i32::default(),
+                    sk_wmem_queued: i32::default(),
+                    sk_wmem_alloc: refcount_struct::default(),
+                    sk_tsq_flags: u64::default(),
+                    __anon_6: __anon_6::default(),
+                    sk_write_queue: sk_buff_head::default(),
+                    sk_peek_off: i32::default(),
+                    sk_write_pending: i32::default(),
+                    sk_dst_pending_confirm: u32::default(),
+                    sk_pacing_status: u32::default(),
+                    sk_sndtimeo: i64::default(),
+                    sk_timer: timer_list::default(),
+                    sk_priority: u32::default(),
+                    sk_mark: u32::default(),
+                    sk_pacing_rate: u64::default(),
+                    sk_max_pacing_rate: u64::default(),
+                    sk_frag: page_frag::default(),
+                    sk_route_caps: u64::default(),
+                    sk_gso_type: i32::default(),
+                    sk_gso_max_size: u32::default(),
+                    sk_allocation: u32::default(),
+                    sk_txhash: u32::default(),
+                    __pad_536: [u8::default(); 1],
+                    sk_pacing_shift: u8::default(),
+                    sk_type: u16::default(),
+                    sk_protocol: u16::default(),
+                    sk_gso_max_segs: u16::default(),
+                    sk_lingertime: u64::default(),
+                    sk_prot_creator: std::ptr::null_mut(),
+                    sk_callback_lock: __anon_7::default(),
+                    sk_err: i32::default(),
+                    sk_err_soft: i32::default(),
+                    sk_ack_backlog: u32::default(),
+                    sk_max_ack_backlog: u32::default(),
+                    sk_uid: __anon_8::default(),
+                    sk_txrehash: u8::default(),
+                    sk_prefer_busy_poll: u8::default(),
+                    sk_busy_poll_budget: u16::default(),
+                    sk_peer_lock: spinlock::default(),
+                    sk_bind_phc: i32::default(),
+                    sk_peer_pid: std::ptr::null_mut(),
+                    sk_peer_cred: std::ptr::null_mut(),
+                    sk_rcvtimeo: i64::default(),
+                    sk_stamp: i64::default(),
+                    sk_tsflags: u16::default(),
+                    sk_shutdown: u8::default(),
+                    sk_tskey: __anon_3::default(),
+                    sk_zckey: __anon_3::default(),
+                    sk_clockid: u8::default(),
+                    __pad_645: [u8::default(); 1],
+                    sk_use_task_frag: std::mem::MaybeUninit::new(bool::default()),
+                    sk_socket: std::ptr::null_mut(),
+                    sk_user_data: std::ptr::null_mut(),
+                    sk_security: std::ptr::null_mut(),
+                    sk_cgrp_data: sock_cgroup_data::default(),
+                    sk_memcg: std::ptr::null_mut(),
+                    sk_state_change: std::ptr::null_mut(),
+                    sk_data_ready: std::ptr::null_mut(),
+                    sk_write_space: std::ptr::null_mut(),
+                    sk_error_report: std::ptr::null_mut(),
+                    sk_backlog_rcv: std::ptr::null_mut(),
+                    sk_validate_xmit_skb: std::ptr::null_mut(),
+                    sk_destruct: std::ptr::null_mut(),
+                    sk_reuseport_cb: std::ptr::null_mut(),
+                    sk_bpf_storage: std::ptr::null_mut(),
+                    sk_rcu: callback_head::default(),
+                    ns_tracker: __anon_9::default(),
+                }
+            }
+        }
+        #[derive(Debug, Copy, Clone)]
+        #[repr(C)]
+        pub struct sock_common {
+            pub __anon_10: __anon_10,
+            pub __anon_11: __anon_11,
+            pub __anon_12: __anon_12,
+            pub skc_family: u16,
+            pub skc_state: u8,
+            pub skc_bound_dev_if: i32,
+            pub __anon_13: __anon_13,
+            pub skc_prot: *mut std::ffi::c_void,
+            pub skc_net: __anon_14,
+            pub skc_v6_daddr: in6_addr,
+            pub skc_v6_rcv_saddr: in6_addr,
+            pub skc_cookie: __anon_15,
+            pub __anon_16: __anon_16,
+            pub skc_dontcopy_begin: [i32; 0],
+            pub __anon_17: __anon_17,
+            pub skc_tx_queue_mapping: u16,
+            pub skc_rx_queue_mapping: u16,
+            pub __anon_18: __anon_18,
+            pub skc_refcnt: refcount_struct,
+            pub skc_dontcopy_end: [i32; 0],
+            pub __anon_19: __anon_19,
+        }
+        impl Default for sock_common {
+            fn default() -> Self {
+                Self {
+                    __anon_10: __anon_10::default(),
+                    __anon_11: __anon_11::default(),
+                    __anon_12: __anon_12::default(),
+                    skc_family: u16::default(),
+                    skc_state: u8::default(),
+                    skc_bound_dev_if: i32::default(),
+                    __anon_13: __anon_13::default(),
+                    skc_prot: std::ptr::null_mut(),
+                    skc_net: __anon_14::default(),
+                    skc_v6_daddr: in6_addr::default(),
+                    skc_v6_rcv_saddr: in6_addr::default(),
+                    skc_cookie: __anon_15::default(),
+                    __anon_16: __anon_16::default(),
+                    skc_dontcopy_begin: [i32::default(); 0],
+                    __anon_17: __anon_17::default(),
+                    skc_tx_queue_mapping: u16::default(),
+                    skc_rx_queue_mapping: u16::default(),
+                    __anon_18: __anon_18::default(),
+                    skc_refcnt: refcount_struct::default(),
+                    skc_dontcopy_end: [i32::default(); 0],
+                    __anon_19: __anon_19::default(),
+                }
+            }
+        }
+        #[derive(Debug, Default, Copy, Clone)]
+        #[repr(C)]
+        pub struct __anon_2 {
+            pub slock: spinlock,
+            pub owned: i32,
+            pub wq: wait_queue_head,
+        }
+        #[derive(Debug, Default, Copy, Clone)]
+        #[repr(C)]
+        pub struct __anon_3 {
+            pub counter: i32,
+        }
+        #[derive(Debug, Default, Copy, Clone)]
+        #[repr(C)]
+        pub struct sk_buff_head {
+            pub __anon_20: __anon_20,
+            pub qlen: u32,
+            pub lock: spinlock,
+        }
+        #[derive(Debug, Copy, Clone)]
+        #[repr(C)]
+        pub struct __anon_4 {
+            pub rmem_alloc: __anon_3,
+            pub len: i32,
+            pub head: *mut sk_buff,
+            pub tail: *mut sk_buff,
+        }
+        impl Default for __anon_4 {
+            fn default() -> Self {
+                Self {
+                    rmem_alloc: __anon_3::default(),
+                    len: i32::default(),
+                    head: std::ptr::null_mut(),
+                    tail: std::ptr::null_mut(),
+                }
+            }
+        }
+        #[derive(Debug, Copy, Clone)]
+        #[repr(C)]
+        pub struct llist_head {
+            pub first: *mut llist_node,
+        }
+        impl Default for llist_head {
+            fn default() -> Self {
+                Self {
+                    first: std::ptr::null_mut(),
+                }
+            }
+        }
+        #[derive(Copy, Clone)]
+        #[repr(C)]
+        pub union __anon_5 {
+            pub sk_wq: *mut std::ffi::c_void,
+            pub sk_wq_raw: *mut std::ffi::c_void,
+        }
+        impl std::fmt::Debug for __anon_5 {
+            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                write!(f, "(???)")
+            }
+        }
+        impl Default for __anon_5 {
+            fn default() -> Self {
+                Self {
+                    sk_wq: std::ptr::null_mut(),
+                }
+            }
+        }
+        #[derive(Debug, Copy, Clone)]
+        #[repr(C)]
+        pub struct xfrm_policy {
+            pub xp_net: __anon_14,
+            pub bydst: hlist_node,
+            pub byidx: hlist_node,
+            pub lock: __anon_7,
+            pub refcnt: refcount_struct,
+            pub pos: u32,
+            pub timer: timer_list,
+            pub genid: __anon_3,
+            pub priority: u32,
+            pub index: u32,
+            pub if_id: u32,
+            pub mark: xfrm_mark,
+            pub selector: xfrm_selector,
+            pub lft: xfrm_lifetime_cfg,
+            pub curlft: xfrm_lifetime_cur,
+            pub walk: xfrm_policy_walk_entry,
+            pub polq: xfrm_policy_queue,
+            pub bydst_reinsert: std::mem::MaybeUninit<bool>,
+            pub r#type: u8,
+            pub action: u8,
+            pub flags: u8,
+            pub xfrm_nr: u8,
+            pub family: u16,
+            pub security: *mut std::ffi::c_void,
+            pub xfrm_vec: [xfrm_tmpl; 6],
+            pub bydst_inexact_list: hlist_node,
+            pub rcu: callback_head,
+            pub xdo: xfrm_dev_offload,
+        }
+        impl Default for xfrm_policy {
+            fn default() -> Self {
+                Self {
+                    xp_net: __anon_14::default(),
+                    bydst: hlist_node::default(),
+                    byidx: hlist_node::default(),
+                    lock: __anon_7::default(),
+                    refcnt: refcount_struct::default(),
+                    pos: u32::default(),
+                    timer: timer_list::default(),
+                    genid: __anon_3::default(),
+                    priority: u32::default(),
+                    index: u32::default(),
+                    if_id: u32::default(),
+                    mark: xfrm_mark::default(),
+                    selector: xfrm_selector::default(),
+                    lft: xfrm_lifetime_cfg::default(),
+                    curlft: xfrm_lifetime_cur::default(),
+                    walk: xfrm_policy_walk_entry::default(),
+                    polq: xfrm_policy_queue::default(),
+                    bydst_reinsert: std::mem::MaybeUninit::new(bool::default()),
+                    r#type: u8::default(),
+                    action: u8::default(),
+                    flags: u8::default(),
+                    xfrm_nr: u8::default(),
+                    family: u16::default(),
+                    security: std::ptr::null_mut(),
+                    xfrm_vec: [xfrm_tmpl::default(); 6],
+                    bydst_inexact_list: hlist_node::default(),
+                    rcu: callback_head::default(),
+                    xdo: xfrm_dev_offload::default(),
+                }
+            }
+        }
+        #[derive(Debug, Default, Copy, Clone)]
+        #[repr(C)]
+        pub struct refcount_struct {
+            pub refs: __anon_3,
+        }
+        #[derive(Copy, Clone)]
+        #[repr(C)]
+        pub union __anon_6 {
+            pub sk_send_head: *mut sk_buff,
+            pub tcp_rtx_queue: rb_root,
+        }
+        impl std::fmt::Debug for __anon_6 {
+            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                write!(f, "(???)")
+            }
+        }
+        impl Default for __anon_6 {
+            fn default() -> Self {
+                Self {
+                    sk_send_head: std::ptr::null_mut(),
+                }
+            }
+        }
+        #[derive(Debug, Copy, Clone)]
+        #[repr(C)]
+        pub struct timer_list {
+            pub entry: hlist_node,
+            pub expires: u64,
+            pub function: *mut std::ffi::c_void,
+            pub flags: u32,
+            pub __pad_36: [u8; 4],
+            pub rh_reserved1: u64,
+            pub rh_reserved2: u64,
+        }
+        impl Default for timer_list {
+            fn default() -> Self {
+                Self {
+                    entry: hlist_node::default(),
+                    expires: u64::default(),
+                    function: std::ptr::null_mut(),
+                    flags: u32::default(),
+                    __pad_36: [u8::default(); 4],
+                    rh_reserved1: u64::default(),
+                    rh_reserved2: u64::default(),
+                }
+            }
+        }
+        #[derive(Debug, Copy, Clone)]
+        #[repr(C)]
+        pub struct page_frag {
+            pub page: *mut std::ffi::c_void,
+            pub offset: u32,
+            pub size: u32,
+        }
+        impl Default for page_frag {
+            fn default() -> Self {
+                Self {
+                    page: std::ptr::null_mut(),
+                    offset: u32::default(),
+                    size: u32::default(),
+                }
+            }
+        }
+        #[derive(Debug, Default, Copy, Clone)]
+        #[repr(C)]
+        pub struct __anon_7 {
+            pub raw_lock: qrwlock,
+        }
+        #[derive(Debug, Default, Copy, Clone)]
+        #[repr(C)]
+        pub struct __anon_8 {
+            pub val: u32,
+        }
+        #[derive(Debug, Default, Copy, Clone)]
+        #[repr(C)]
+        pub struct spinlock {
+            pub __anon_21: __anon_21,
+        }
+        #[derive(Debug, Copy, Clone)]
+        #[repr(C)]
+        pub struct cred {
+            pub usage: __anon_3,
+            pub uid: __anon_8,
+            pub gid: __anon_22,
+            pub suid: __anon_8,
+            pub sgid: __anon_22,
+            pub euid: __anon_8,
+            pub egid: __anon_22,
+            pub fsuid: __anon_8,
+            pub fsgid: __anon_22,
+            pub securebits: u32,
+            pub cap_inheritable: kernel_cap_struct,
+            pub cap_permitted: kernel_cap_struct,
+            pub cap_effective: kernel_cap_struct,
+            pub cap_bset: kernel_cap_struct,
+            pub cap_ambient: kernel_cap_struct,
+            pub jit_keyring: u8,
+            pub __pad_81: [u8; 7],
+            pub session_keyring: *mut std::ffi::c_void,
+            pub process_keyring: *mut std::ffi::c_void,
+            pub thread_keyring: *mut std::ffi::c_void,
+            pub request_key_auth: *mut std::ffi::c_void,
+            pub security: *mut std::ffi::c_void,
+            pub user: *mut std::ffi::c_void,
+            pub user_ns: *mut std::ffi::c_void,
+            pub ucounts: *mut std::ffi::c_void,
+            pub group_info: *mut std::ffi::c_void,
+            pub __anon_23: __anon_23,
+        }
+        impl Default for cred {
+            fn default() -> Self {
+                Self {
+                    usage: __anon_3::default(),
+                    uid: __anon_8::default(),
+                    gid: __anon_22::default(),
+                    suid: __anon_8::default(),
+                    sgid: __anon_22::default(),
+                    euid: __anon_8::default(),
+                    egid: __anon_22::default(),
+                    fsuid: __anon_8::default(),
+                    fsgid: __anon_22::default(),
+                    securebits: u32::default(),
+                    cap_inheritable: kernel_cap_struct::default(),
+                    cap_permitted: kernel_cap_struct::default(),
+                    cap_effective: kernel_cap_struct::default(),
+                    cap_bset: kernel_cap_struct::default(),
+                    cap_ambient: kernel_cap_struct::default(),
+                    jit_keyring: u8::default(),
+                    __pad_81: [u8::default(); 7],
+                    session_keyring: std::ptr::null_mut(),
+                    process_keyring: std::ptr::null_mut(),
+                    thread_keyring: std::ptr::null_mut(),
+                    request_key_auth: std::ptr::null_mut(),
+                    security: std::ptr::null_mut(),
+                    user: std::ptr::null_mut(),
+                    user_ns: std::ptr::null_mut(),
+                    ucounts: std::ptr::null_mut(),
+                    group_info: std::ptr::null_mut(),
+                    __anon_23: __anon_23::default(),
+                }
+            }
+        }
+        #[derive(Debug, Copy, Clone)]
+        #[repr(C)]
+        pub struct sock_cgroup_data {
+            pub cgroup: *mut std::ffi::c_void,
+            pub classid: u32,
+            pub prioidx: u16,
+        }
+        impl Default for sock_cgroup_data {
+            fn default() -> Self {
+                Self {
+                    cgroup: std::ptr::null_mut(),
+                    classid: u32::default(),
+                    prioidx: u16::default(),
+                }
+            }
+        }
+        #[derive(Debug, Copy, Clone)]
+        #[repr(C)]
+        pub struct sk_buff {
+            pub __anon_24: __anon_24,
+            pub __anon_25: __anon_25,
+            pub __anon_26: __anon_26,
+            pub cb: [i8; 48],
+            pub __anon_27: __anon_27,
+            pub _nfct: u64,
+            pub len: u32,
+            pub data_len: u32,
+            pub mac_len: u16,
+            pub hdr_len: u16,
+            pub queue_mapping: u16,
+            pub __cloned_offset: [u8; 0],
+            pub __pad_126: [u8; 1],
+            pub active_extensions: u8,
+            pub __anon_28: __anon_28,
+            pub tail: u32,
+            pub end: u32,
+            pub head: *mut u8,
+            pub data: *mut u8,
+            pub truesize: u32,
+            pub users: refcount_struct,
+            pub extensions: *mut std::ffi::c_void,
+        }
+        impl Default for sk_buff {
+            fn default() -> Self {
+                Self {
+                    __anon_24: __anon_24::default(),
+                    __anon_25: __anon_25::default(),
+                    __anon_26: __anon_26::default(),
+                    cb: [i8::default(); 48],
+                    __anon_27: __anon_27::default(),
+                    _nfct: u64::default(),
+                    len: u32::default(),
+                    data_len: u32::default(),
+                    mac_len: u16::default(),
+                    hdr_len: u16::default(),
+                    queue_mapping: u16::default(),
+                    __cloned_offset: [u8::default(); 0],
+                    __pad_126: [u8::default(); 1],
+                    active_extensions: u8::default(),
+                    __anon_28: __anon_28::default(),
+                    tail: u32::default(),
+                    end: u32::default(),
+                    head: std::ptr::null_mut(),
+                    data: std::ptr::null_mut(),
+                    truesize: u32::default(),
+                    users: refcount_struct::default(),
+                    extensions: std::ptr::null_mut(),
+                }
+            }
+        }
+        #[derive(Debug, Copy, Clone)]
+        #[repr(C)]
+        pub struct callback_head {
+            pub next: *mut callback_head,
+            pub func: *mut std::ffi::c_void,
+        }
+        impl Default for callback_head {
+            fn default() -> Self {
+                Self {
+                    next: std::ptr::null_mut(),
+                    func: std::ptr::null_mut(),
+                }
+            }
+        }
+        #[derive(Debug, Default, Copy, Clone)]
+        #[repr(C)]
+        pub struct __anon_9 {}
+        #[derive(Copy, Clone)]
+        #[repr(C)]
+        pub union __anon_10 {
+            pub skc_addrpair: u64,
+            pub __anon_29: __anon_29,
+        }
+        impl std::fmt::Debug for __anon_10 {
+            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                write!(f, "(???)")
+            }
+        }
+        impl Default for __anon_10 {
+            fn default() -> Self {
+                Self {
+                    skc_addrpair: u64::default(),
+                }
+            }
+        }
+        #[derive(Copy, Clone)]
+        #[repr(C)]
+        pub union __anon_11 {
+            pub skc_hash: u32,
+            pub skc_u16hashes: [u16; 2],
+        }
+        impl std::fmt::Debug for __anon_11 {
+            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                write!(f, "(???)")
+            }
+        }
+        impl Default for __anon_11 {
+            fn default() -> Self {
+                Self {
+                    skc_hash: u32::default(),
+                }
+            }
+        }
+        #[derive(Copy, Clone)]
+        #[repr(C)]
+        pub union __anon_12 {
+            pub skc_portpair: u32,
+            pub __anon_30: __anon_30,
+        }
+        impl std::fmt::Debug for __anon_12 {
+            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                write!(f, "(???)")
+            }
+        }
+        impl Default for __anon_12 {
+            fn default() -> Self {
+                Self {
+                    skc_portpair: u32::default(),
+                }
+            }
+        }
+        #[derive(Copy, Clone)]
+        #[repr(C)]
+        pub union __anon_13 {
+            pub skc_bind_node: hlist_node,
+            pub skc_portaddr_node: hlist_node,
+        }
+        impl std::fmt::Debug for __anon_13 {
+            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                write!(f, "(???)")
+            }
+        }
+        impl Default for __anon_13 {
+            fn default() -> Self {
+                Self {
+                    skc_bind_node: hlist_node::default(),
+                }
+            }
+        }
+        #[derive(Debug, Copy, Clone)]
+        #[repr(C)]
+        pub struct __anon_14 {
+            pub net: *mut std::ffi::c_void,
+        }
+        impl Default for __anon_14 {
+            fn default() -> Self {
+                Self {
+                    net: std::ptr::null_mut(),
+                }
+            }
+        }
+        #[derive(Debug, Default, Copy, Clone)]
+        #[repr(C)]
+        pub struct in6_addr {
+            pub in6_u: __anon_31,
+        }
+        #[derive(Debug, Default, Copy, Clone)]
+        #[repr(C)]
+        pub struct __anon_15 {
+            pub counter: i64,
+        }
+        #[derive(Copy, Clone)]
+        #[repr(C)]
+        pub union __anon_16 {
+            pub skc_flags: u64,
+            pub skc_listener: *mut sock,
+            pub skc_tw_dr: *mut std::ffi::c_void,
+        }
+        impl std::fmt::Debug for __anon_16 {
+            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                write!(f, "(???)")
+            }
+        }
+        impl Default for __anon_16 {
+            fn default() -> Self {
+                Self {
+                    skc_flags: u64::default(),
+                }
+            }
+        }
+        #[derive(Copy, Clone)]
+        #[repr(C)]
+        pub union __anon_17 {
+            pub skc_node: hlist_node,
+            pub skc_nulls_node: hlist_nulls_node,
+        }
+        impl std::fmt::Debug for __anon_17 {
+            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                write!(f, "(???)")
+            }
+        }
+        impl Default for __anon_17 {
+            fn default() -> Self {
+                Self {
+                    skc_node: hlist_node::default(),
+                }
+            }
+        }
+        #[derive(Copy, Clone)]
+        #[repr(C)]
+        pub union __anon_18 {
+            pub skc_incoming_cpu: i32,
+            pub skc_rcv_wnd: u32,
+            pub skc_tw_rcv_nxt: u32,
+        }
+        impl std::fmt::Debug for __anon_18 {
+            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                write!(f, "(???)")
+            }
+        }
+        impl Default for __anon_18 {
+            fn default() -> Self {
+                Self {
+                    skc_incoming_cpu: i32::default(),
+                }
+            }
+        }
+        #[derive(Copy, Clone)]
+        #[repr(C)]
+        pub union __anon_19 {
+            pub skc_rxhash: u32,
+            pub skc_window_clamp: u32,
+            pub skc_tw_snd_nxt: u32,
+        }
+        impl std::fmt::Debug for __anon_19 {
+            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                write!(f, "(???)")
+            }
+        }
+        impl Default for __anon_19 {
+            fn default() -> Self {
+                Self {
+                    skc_rxhash: u32::default(),
+                }
+            }
+        }
+        #[derive(Debug, Default, Copy, Clone)]
+        #[repr(C)]
+        pub struct wait_queue_head {
+            pub lock: spinlock,
+            pub __pad_4: [u8; 4],
+            pub head: list_head,
+        }
+        #[derive(Copy, Clone)]
+        #[repr(C)]
+        pub union __anon_20 {
+            pub __anon_32: __anon_32,
+            pub list: sk_buff_list,
+        }
+        impl std::fmt::Debug for __anon_20 {
+            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                write!(f, "(???)")
+            }
+        }
+        impl Default for __anon_20 {
+            fn default() -> Self {
+                Self {
+                    __anon_32: __anon_32::default(),
+                }
+            }
+        }
+        #[derive(Debug, Copy, Clone)]
+        #[repr(C)]
+        pub struct llist_node {
+            pub next: *mut llist_node,
+        }
+        impl Default for llist_node {
+            fn default() -> Self {
+                Self {
+                    next: std::ptr::null_mut(),
+                }
+            }
+        }
+        #[derive(Debug, Copy, Clone)]
+        #[repr(C)]
+        pub struct hlist_node {
+            pub next: *mut hlist_node,
+            pub pprev: *mut *mut hlist_node,
+        }
+        impl Default for hlist_node {
+            fn default() -> Self {
+                Self {
+                    next: std::ptr::null_mut(),
+                    pprev: std::ptr::null_mut(),
+                }
+            }
+        }
+        #[derive(Debug, Default, Copy, Clone)]
+        #[repr(C)]
+        pub struct xfrm_mark {
+            pub v: u32,
+            pub m: u32,
+        }
+        #[derive(Debug, Default, Copy, Clone)]
+        #[repr(C)]
+        pub struct xfrm_selector {
+            pub daddr: __anon_33,
+            pub saddr: __anon_33,
+            pub dport: u16,
+            pub dport_mask: u16,
+            pub sport: u16,
+            pub sport_mask: u16,
+            pub family: u16,
+            pub prefixlen_d: u8,
+            pub prefixlen_s: u8,
+            pub proto: u8,
+            pub ifindex: i32,
+            pub user: u32,
+        }
+        #[derive(Debug, Default, Copy, Clone)]
+        #[repr(C)]
+        pub struct xfrm_lifetime_cfg {
+            pub soft_byte_limit: u64,
+            pub hard_byte_limit: u64,
+            pub soft_packet_limit: u64,
+            pub hard_packet_limit: u64,
+            pub soft_add_expires_seconds: u64,
+            pub hard_add_expires_seconds: u64,
+            pub soft_use_expires_seconds: u64,
+            pub hard_use_expires_seconds: u64,
+        }
+        #[derive(Debug, Default, Copy, Clone)]
+        #[repr(C)]
+        pub struct xfrm_lifetime_cur {
+            pub bytes: u64,
+            pub packets: u64,
+            pub add_time: u64,
+            pub use_time: u64,
+        }
+        #[derive(Debug, Default, Copy, Clone)]
+        #[repr(C)]
+        pub struct xfrm_policy_walk_entry {
+            pub all: list_head,
+            pub dead: u8,
+            pub __pad_17: [u8; 7],
+        }
+        #[derive(Debug, Default, Copy, Clone)]
+        #[repr(C)]
+        pub struct xfrm_policy_queue {
+            pub hold_queue: sk_buff_head,
+            pub hold_timer: timer_list,
+            pub timeout: u64,
+        }
+        #[derive(Debug, Default, Copy, Clone)]
+        #[repr(C)]
+        pub struct xfrm_tmpl {
+            pub id: xfrm_id,
+            pub saddr: __anon_33,
+            pub encap_family: u16,
+            pub reqid: u32,
+            pub mode: u8,
+            pub share: u8,
+            pub optional: u8,
+            pub allalgs: u8,
+            pub aalgos: u32,
+            pub ealgos: u32,
+            pub calgos: u32,
+        }
+        #[derive(Debug, Copy, Clone)]
+        #[repr(C)]
+        pub struct xfrm_dev_offload {
+            pub dev: *mut net_device,
+            pub dev_tracker: __anon_9,
+            pub real_dev: *mut net_device,
+            pub offload_handle: u64,
+            pub __pad_24: [u8; 8],
+        }
+        impl Default for xfrm_dev_offload {
+            fn default() -> Self {
+                Self {
+                    dev: std::ptr::null_mut(),
+                    dev_tracker: __anon_9::default(),
+                    real_dev: std::ptr::null_mut(),
+                    offload_handle: u64::default(),
+                    __pad_24: [u8::default(); 8],
+                }
+            }
+        }
+        #[derive(Debug, Copy, Clone)]
+        #[repr(C)]
+        pub struct rb_root {
+            pub rb_node: *mut rb_node,
+        }
+        impl Default for rb_root {
+            fn default() -> Self {
+                Self {
+                    rb_node: std::ptr::null_mut(),
+                }
+            }
+        }
+        #[derive(Debug, Default, Copy, Clone)]
+        #[repr(C)]
+        pub struct qrwlock {
+            pub __anon_34: __anon_34,
+            pub wait_lock: qspinlock,
+        }
+        #[derive(Copy, Clone)]
+        #[repr(C)]
+        pub union __anon_21 {
+            pub rlock: raw_spinlock,
+        }
+        impl std::fmt::Debug for __anon_21 {
+            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                write!(f, "(???)")
+            }
+        }
+        impl Default for __anon_21 {
+            fn default() -> Self {
+                Self {
+                    rlock: raw_spinlock::default(),
+                }
+            }
+        }
+        #[derive(Debug, Default, Copy, Clone)]
+        #[repr(C)]
+        pub struct __anon_22 {
+            pub val: u32,
+        }
+        #[derive(Debug, Default, Copy, Clone)]
+        #[repr(C)]
+        pub struct kernel_cap_struct {
+            pub cap: [u32; 2],
+        }
+        #[derive(Copy, Clone)]
+        #[repr(C)]
+        pub union __anon_23 {
+            pub non_rcu: i32,
+            pub rcu: callback_head,
+        }
+        impl std::fmt::Debug for __anon_23 {
+            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                write!(f, "(???)")
+            }
+        }
+        impl Default for __anon_23 {
+            fn default() -> Self {
+                Self {
+                    non_rcu: i32::default(),
+                }
+            }
+        }
+        #[derive(Copy, Clone)]
+        #[repr(C)]
+        pub union __anon_24 {
+            pub __anon_35: __anon_35,
+            pub rbnode: rb_node,
+            pub list: list_head,
+            pub ll_node: llist_node,
+        }
+        impl std::fmt::Debug for __anon_24 {
+            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                write!(f, "(???)")
+            }
+        }
+        impl Default for __anon_24 {
+            fn default() -> Self {
+                Self {
+                    __anon_35: __anon_35::default(),
+                }
+            }
+        }
+        #[derive(Copy, Clone)]
+        #[repr(C)]
+        pub union __anon_25 {
+            pub sk: *mut sock,
+            pub ip_defrag_offset: i32,
+        }
+        impl std::fmt::Debug for __anon_25 {
+            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                write!(f, "(???)")
+            }
+        }
+        impl Default for __anon_25 {
+            fn default() -> Self {
+                Self {
+                    sk: std::ptr::null_mut(),
+                }
+            }
+        }
+        #[derive(Copy, Clone)]
+        #[repr(C)]
+        pub union __anon_26 {
+            pub tstamp: i64,
+            pub skb_mstamp_ns: u64,
+        }
+        impl std::fmt::Debug for __anon_26 {
+            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                write!(f, "(???)")
+            }
+        }
+        impl Default for __anon_26 {
+            fn default() -> Self {
+                Self {
+                    tstamp: i64::default(),
+                }
+            }
+        }
+        #[derive(Copy, Clone)]
+        #[repr(C)]
+        pub union __anon_27 {
+            pub __anon_36: __anon_36,
+            pub tcp_tsorted_anchor: list_head,
+            pub _sk_redir: u64,
+        }
+        impl std::fmt::Debug for __anon_27 {
+            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                write!(f, "(???)")
+            }
+        }
+        impl Default for __anon_27 {
+            fn default() -> Self {
+                Self {
+                    __anon_36: __anon_36::default(),
+                }
+            }
+        }
+        #[derive(Copy, Clone)]
+        #[repr(C)]
+        pub union __anon_28 {
+            pub __anon_37: __anon_37,
+            pub headers: __anon_37,
+        }
+        impl std::fmt::Debug for __anon_28 {
+            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                write!(f, "(???)")
+            }
+        }
+        impl Default for __anon_28 {
+            fn default() -> Self {
+                Self {
+                    __anon_37: __anon_37::default(),
+                }
+            }
+        }
+        #[derive(Debug, Default, Copy, Clone)]
+        #[repr(C)]
+        pub struct __anon_29 {
+            pub skc_daddr: u32,
+            pub skc_rcv_saddr: u32,
+        }
+        #[derive(Debug, Default, Copy, Clone)]
+        #[repr(C)]
+        pub struct __anon_30 {
+            pub skc_dport: u16,
+            pub skc_num: u16,
+        }
+        #[derive(Copy, Clone)]
+        #[repr(C)]
+        pub union __anon_31 {
+            pub u6_addr8: [u8; 16],
+            pub u6_addr16: [u16; 8],
+            pub u6_addr32: [u32; 4],
+        }
+        impl std::fmt::Debug for __anon_31 {
+            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                write!(f, "(???)")
+            }
+        }
+        impl Default for __anon_31 {
+            fn default() -> Self {
+                Self {
+                    u6_addr8: [u8::default(); 16],
+                }
+            }
+        }
+        #[derive(Debug, Copy, Clone)]
+        #[repr(C)]
+        pub struct hlist_nulls_node {
+            pub next: *mut hlist_nulls_node,
+            pub pprev: *mut *mut hlist_nulls_node,
+        }
+        impl Default for hlist_nulls_node {
+            fn default() -> Self {
+                Self {
+                    next: std::ptr::null_mut(),
+                    pprev: std::ptr::null_mut(),
+                }
+            }
+        }
+        #[derive(Debug, Copy, Clone)]
+        #[repr(C)]
+        pub struct list_head {
+            pub next: *mut list_head,
+            pub prev: *mut list_head,
+        }
+        impl Default for list_head {
+            fn default() -> Self {
+                Self {
+                    next: std::ptr::null_mut(),
+                    prev: std::ptr::null_mut(),
+                }
+            }
+        }
+        #[derive(Debug, Copy, Clone)]
+        #[repr(C)]
+        pub struct __anon_32 {
+            pub next: *mut sk_buff,
+            pub prev: *mut sk_buff,
+        }
+        impl Default for __anon_32 {
+            fn default() -> Self {
+                Self {
+                    next: std::ptr::null_mut(),
+                    prev: std::ptr::null_mut(),
+                }
+            }
+        }
+        #[derive(Debug, Copy, Clone)]
+        #[repr(C)]
+        pub struct sk_buff_list {
+            pub next: *mut sk_buff,
+            pub prev: *mut sk_buff,
+        }
+        impl Default for sk_buff_list {
+            fn default() -> Self {
+                Self {
+                    next: std::ptr::null_mut(),
+                    prev: std::ptr::null_mut(),
+                }
+            }
+        }
+        #[derive(Copy, Clone)]
+        #[repr(C)]
+        pub union __anon_33 {
+            pub a4: u32,
+            pub a6: [u32; 4],
+            pub in6: in6_addr,
+        }
+        impl std::fmt::Debug for __anon_33 {
+            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                write!(f, "(???)")
+            }
+        }
+        impl Default for __anon_33 {
+            fn default() -> Self {
+                Self { a4: u32::default() }
+            }
+        }
+        #[derive(Debug, Default, Copy, Clone)]
+        #[repr(C)]
+        pub struct xfrm_id {
+            pub daddr: __anon_33,
+            pub spi: u32,
+            pub proto: u8,
+        }
+        #[derive(Debug, Copy, Clone)]
+        #[repr(C)]
+        pub struct net_device {
+            pub name: [i8; 16],
+            pub name_node: *mut std::ffi::c_void,
+            pub ifalias: *mut std::ffi::c_void,
+            pub mem_end: u64,
+            pub mem_start: u64,
+            pub base_addr: u64,
+            pub state: u64,
+            pub dev_list: list_head,
+            pub napi_list: list_head,
+            pub unreg_list: list_head,
+            pub close_list: list_head,
+            pub ptype_all: list_head,
+            pub ptype_specific: list_head,
+            pub adj_list: __anon_38,
+            pub flags: u32,
+            pub xdp_features: u32,
+            pub priv_flags: u64,
+            pub netdev_ops: *mut std::ffi::c_void,
+            pub xdp_metadata_ops: *mut std::ffi::c_void,
+            pub ifindex: i32,
+            pub gflags: u16,
+            pub hard_header_len: u16,
+            pub mtu: u32,
+            pub needed_headroom: u16,
+            pub needed_tailroom: u16,
+            pub features: u64,
+            pub hw_features: u64,
+            pub wanted_features: u64,
+            pub vlan_features: u64,
+            pub hw_enc_features: u64,
+            pub mpls_features: u64,
+            pub gso_partial_features: u64,
+            pub min_mtu: u32,
+            pub max_mtu: u32,
+            pub r#type: u16,
+            pub min_header_len: u8,
+            pub name_assign_type: u8,
+            pub group: i32,
+            pub stats: net_device_stats,
+            pub core_stats: *mut std::ffi::c_void,
+            pub carrier_up_count: __anon_3,
+            pub carrier_down_count: __anon_3,
+            pub ethtool_ops: *mut std::ffi::c_void,
+            pub l3mdev_ops: *mut std::ffi::c_void,
+            pub ndisc_ops: *mut std::ffi::c_void,
+            pub xfrmdev_ops: *mut std::ffi::c_void,
+            pub tlsdev_ops: *mut std::ffi::c_void,
+            pub header_ops: *mut std::ffi::c_void,
+            pub operstate: u8,
+            pub link_mode: u8,
+            pub if_port: u8,
+            pub dma: u8,
+            pub perm_addr: [u8; 32],
+            pub addr_assign_type: u8,
+            pub addr_len: u8,
+            pub upper_level: u8,
+            pub lower_level: u8,
+            pub neigh_priv_len: u16,
+            pub dev_id: u16,
+            pub dev_port: u16,
+            pub padded: u16,
+            pub addr_list_lock: spinlock,
+            pub irq: i32,
+            pub uc: netdev_hw_addr_list,
+            pub mc: netdev_hw_addr_list,
+            pub dev_addrs: netdev_hw_addr_list,
+            pub queues_kset: *mut std::ffi::c_void,
+            pub promiscuity: u32,
+            pub allmulti: u32,
+            pub uc_promisc: std::mem::MaybeUninit<bool>,
+            pub __pad_705: [u8; 7],
+            pub ip_ptr: *mut std::ffi::c_void,
+            pub ip6_ptr: *mut std::ffi::c_void,
+            pub vlan_info: *mut std::ffi::c_void,
+            pub tipc_ptr: *mut std::ffi::c_void,
+            pub ieee80211_ptr: *mut std::ffi::c_void,
+            pub ieee802154_ptr: *mut std::ffi::c_void,
+            pub mpls_ptr: *mut std::ffi::c_void,
+            pub dev_addr: *mut u8,
+            pub _rx: *mut std::ffi::c_void,
+            pub num_rx_queues: u32,
+            pub real_num_rx_queues: u32,
+            pub xdp_prog: *mut std::ffi::c_void,
+            pub gro_flush_timeout: u64,
+            pub napi_defer_hard_irqs: i32,
+            pub gro_max_size: u32,
+            pub gro_ipv4_max_size: u32,
+            pub __pad_820: [u8; 4],
+            pub rx_handler: *mut std::ffi::c_void,
+            pub rx_handler_data: *mut std::ffi::c_void,
+            pub miniq_ingress: *mut std::ffi::c_void,
+            pub ingress_queue: *mut std::ffi::c_void,
+            pub nf_hooks_ingress: *mut std::ffi::c_void,
+            pub broadcast: [u8; 32],
+            pub rx_cpu_rmap: *mut std::ffi::c_void,
+            pub index_hlist: hlist_node,
+            pub __pad_920: [u8; 40],
+            pub _tx: *mut std::ffi::c_void,
+            pub num_tx_queues: u32,
+            pub real_num_tx_queues: u32,
+            pub qdisc: *mut std::ffi::c_void,
+            pub tx_queue_len: u32,
+            pub tx_global_lock: spinlock,
+            pub xdp_bulkq: *mut std::ffi::c_void,
+            pub xps_maps: [*mut xps_dev_maps; 2],
+            pub miniq_egress: *mut std::ffi::c_void,
+            pub nf_hooks_egress: *mut std::ffi::c_void,
+            pub qdisc_hash: [hlist_head; 16],
+            pub watchdog_timer: timer_list,
+            pub watchdog_timeo: i32,
+            pub proto_down_reason: u32,
+            pub todo_list: list_head,
+            pub pcpu_refcnt: *mut i32,
+            pub refcnt_tracker: ref_tracker_dir,
+            pub link_watch_list: list_head,
+            pub __pad_1264: [u8; 1],
+            pub dismantle: std::mem::MaybeUninit<bool>,
+            pub __pad_1266: [u8; 2],
+            pub needs_free_netdev: std::mem::MaybeUninit<bool>,
+            pub priv_destructor: *mut std::ffi::c_void,
+            pub npinfo: *mut std::ffi::c_void,
+            pub nd_net: __anon_14,
+            pub ml_priv: *mut std::ffi::c_void,
+            pub ml_priv_type: std::mem::MaybeUninit<netdev_ml_priv_type>,
+            pub __pad_1308: [u8; 4],
+            pub __anon_39: __anon_39,
+            pub garp_port: *mut std::ffi::c_void,
+            pub mrp_port: *mut std::ffi::c_void,
+            pub dev: device,
+            pub sysfs_groups: [*mut attribute_group; 4],
+            pub sysfs_rx_queue_group: *mut attribute_group,
+            pub rtnl_link_ops: *mut std::ffi::c_void,
+            pub gso_max_size: u32,
+            pub tso_max_size: u32,
+            pub gso_max_segs: u16,
+            pub tso_max_segs: u16,
+            pub gso_ipv4_max_size: u32,
+            pub dcbnl_ops: *mut std::ffi::c_void,
+            pub num_tc: i16,
+            pub tc_to_txq: [netdev_tc_txq; 16],
+            pub prio_tc_map: [u8; 16],
+            pub __pad_2258: [u8; 6],
+            pub priomap: *mut std::ffi::c_void,
+            pub phydev: *mut std::ffi::c_void,
+            pub sfp_bus: *mut std::ffi::c_void,
+            pub qdisc_tx_busylock: *mut std::ffi::c_void,
+            pub proto_down: std::mem::MaybeUninit<bool>,
+            pub __pad_2297: [u8; 7],
+            pub net_notifier_list: list_head,
+            pub macsec_ops: *mut std::ffi::c_void,
+            pub udp_tunnel_nic_info: *mut std::ffi::c_void,
+            pub udp_tunnel_nic: *mut std::ffi::c_void,
+            pub xdp_state: [bpf_xdp_entity; 3],
+            pub linkwatch_dev_tracker: __anon_9,
+            pub watchdog_dev_tracker: __anon_9,
+            pub dev_registered_tracker: __anon_9,
+            pub offload_xstats_l3: *mut std::ffi::c_void,
+            pub devlink_port: *mut std::ffi::c_void,
+            pub dpll_pin: *mut std::ffi::c_void,
+            pub __pad_2416: [u8; 16],
+        }
+        impl Default for net_device {
+            fn default() -> Self {
+                Self {
+                    name: [i8::default(); 16],
+                    name_node: std::ptr::null_mut(),
+                    ifalias: std::ptr::null_mut(),
+                    mem_end: u64::default(),
+                    mem_start: u64::default(),
+                    base_addr: u64::default(),
+                    state: u64::default(),
+                    dev_list: list_head::default(),
+                    napi_list: list_head::default(),
+                    unreg_list: list_head::default(),
+                    close_list: list_head::default(),
+                    ptype_all: list_head::default(),
+                    ptype_specific: list_head::default(),
+                    adj_list: __anon_38::default(),
+                    flags: u32::default(),
+                    xdp_features: u32::default(),
+                    priv_flags: u64::default(),
+                    netdev_ops: std::ptr::null_mut(),
+                    xdp_metadata_ops: std::ptr::null_mut(),
+                    ifindex: i32::default(),
+                    gflags: u16::default(),
+                    hard_header_len: u16::default(),
+                    mtu: u32::default(),
+                    needed_headroom: u16::default(),
+                    needed_tailroom: u16::default(),
+                    features: u64::default(),
+                    hw_features: u64::default(),
+                    wanted_features: u64::default(),
+                    vlan_features: u64::default(),
+                    hw_enc_features: u64::default(),
+                    mpls_features: u64::default(),
+                    gso_partial_features: u64::default(),
+                    min_mtu: u32::default(),
+                    max_mtu: u32::default(),
+                    r#type: u16::default(),
+                    min_header_len: u8::default(),
+                    name_assign_type: u8::default(),
+                    group: i32::default(),
+                    stats: net_device_stats::default(),
+                    core_stats: std::ptr::null_mut(),
+                    carrier_up_count: __anon_3::default(),
+                    carrier_down_count: __anon_3::default(),
+                    ethtool_ops: std::ptr::null_mut(),
+                    l3mdev_ops: std::ptr::null_mut(),
+                    ndisc_ops: std::ptr::null_mut(),
+                    xfrmdev_ops: std::ptr::null_mut(),
+                    tlsdev_ops: std::ptr::null_mut(),
+                    header_ops: std::ptr::null_mut(),
+                    operstate: u8::default(),
+                    link_mode: u8::default(),
+                    if_port: u8::default(),
+                    dma: u8::default(),
+                    perm_addr: [u8::default(); 32],
+                    addr_assign_type: u8::default(),
+                    addr_len: u8::default(),
+                    upper_level: u8::default(),
+                    lower_level: u8::default(),
+                    neigh_priv_len: u16::default(),
+                    dev_id: u16::default(),
+                    dev_port: u16::default(),
+                    padded: u16::default(),
+                    addr_list_lock: spinlock::default(),
+                    irq: i32::default(),
+                    uc: netdev_hw_addr_list::default(),
+                    mc: netdev_hw_addr_list::default(),
+                    dev_addrs: netdev_hw_addr_list::default(),
+                    queues_kset: std::ptr::null_mut(),
+                    promiscuity: u32::default(),
+                    allmulti: u32::default(),
+                    uc_promisc: std::mem::MaybeUninit::new(bool::default()),
+                    __pad_705: [u8::default(); 7],
+                    ip_ptr: std::ptr::null_mut(),
+                    ip6_ptr: std::ptr::null_mut(),
+                    vlan_info: std::ptr::null_mut(),
+                    tipc_ptr: std::ptr::null_mut(),
+                    ieee80211_ptr: std::ptr::null_mut(),
+                    ieee802154_ptr: std::ptr::null_mut(),
+                    mpls_ptr: std::ptr::null_mut(),
+                    dev_addr: std::ptr::null_mut(),
+                    _rx: std::ptr::null_mut(),
+                    num_rx_queues: u32::default(),
+                    real_num_rx_queues: u32::default(),
+                    xdp_prog: std::ptr::null_mut(),
+                    gro_flush_timeout: u64::default(),
+                    napi_defer_hard_irqs: i32::default(),
+                    gro_max_size: u32::default(),
+                    gro_ipv4_max_size: u32::default(),
+                    __pad_820: [u8::default(); 4],
+                    rx_handler: std::ptr::null_mut(),
+                    rx_handler_data: std::ptr::null_mut(),
+                    miniq_ingress: std::ptr::null_mut(),
+                    ingress_queue: std::ptr::null_mut(),
+                    nf_hooks_ingress: std::ptr::null_mut(),
+                    broadcast: [u8::default(); 32],
+                    rx_cpu_rmap: std::ptr::null_mut(),
+                    index_hlist: hlist_node::default(),
+                    __pad_920: [u8::default(); 40],
+                    _tx: std::ptr::null_mut(),
+                    num_tx_queues: u32::default(),
+                    real_num_tx_queues: u32::default(),
+                    qdisc: std::ptr::null_mut(),
+                    tx_queue_len: u32::default(),
+                    tx_global_lock: spinlock::default(),
+                    xdp_bulkq: std::ptr::null_mut(),
+                    xps_maps: [std::ptr::null_mut(); 2],
+                    miniq_egress: std::ptr::null_mut(),
+                    nf_hooks_egress: std::ptr::null_mut(),
+                    qdisc_hash: [hlist_head::default(); 16],
+                    watchdog_timer: timer_list::default(),
+                    watchdog_timeo: i32::default(),
+                    proto_down_reason: u32::default(),
+                    todo_list: list_head::default(),
+                    pcpu_refcnt: std::ptr::null_mut(),
+                    refcnt_tracker: ref_tracker_dir::default(),
+                    link_watch_list: list_head::default(),
+                    __pad_1264: [u8::default(); 1],
+                    dismantle: std::mem::MaybeUninit::new(bool::default()),
+                    __pad_1266: [u8::default(); 2],
+                    needs_free_netdev: std::mem::MaybeUninit::new(bool::default()),
+                    priv_destructor: std::ptr::null_mut(),
+                    npinfo: std::ptr::null_mut(),
+                    nd_net: __anon_14::default(),
+                    ml_priv: std::ptr::null_mut(),
+                    ml_priv_type: std::mem::MaybeUninit::new(netdev_ml_priv_type::default()),
+                    __pad_1308: [u8::default(); 4],
+                    __anon_39: __anon_39::default(),
+                    garp_port: std::ptr::null_mut(),
+                    mrp_port: std::ptr::null_mut(),
+                    dev: device::default(),
+                    sysfs_groups: [std::ptr::null_mut(); 4],
+                    sysfs_rx_queue_group: std::ptr::null_mut(),
+                    rtnl_link_ops: std::ptr::null_mut(),
+                    gso_max_size: u32::default(),
+                    tso_max_size: u32::default(),
+                    gso_max_segs: u16::default(),
+                    tso_max_segs: u16::default(),
+                    gso_ipv4_max_size: u32::default(),
+                    dcbnl_ops: std::ptr::null_mut(),
+                    num_tc: i16::default(),
+                    tc_to_txq: [netdev_tc_txq::default(); 16],
+                    prio_tc_map: [u8::default(); 16],
+                    __pad_2258: [u8::default(); 6],
+                    priomap: std::ptr::null_mut(),
+                    phydev: std::ptr::null_mut(),
+                    sfp_bus: std::ptr::null_mut(),
+                    qdisc_tx_busylock: std::ptr::null_mut(),
+                    proto_down: std::mem::MaybeUninit::new(bool::default()),
+                    __pad_2297: [u8::default(); 7],
+                    net_notifier_list: list_head::default(),
+                    macsec_ops: std::ptr::null_mut(),
+                    udp_tunnel_nic_info: std::ptr::null_mut(),
+                    udp_tunnel_nic: std::ptr::null_mut(),
+                    xdp_state: [bpf_xdp_entity::default(); 3],
+                    linkwatch_dev_tracker: __anon_9::default(),
+                    watchdog_dev_tracker: __anon_9::default(),
+                    dev_registered_tracker: __anon_9::default(),
+                    offload_xstats_l3: std::ptr::null_mut(),
+                    devlink_port: std::ptr::null_mut(),
+                    dpll_pin: std::ptr::null_mut(),
+                    __pad_2416: [u8::default(); 16],
+                }
+            }
+        }
+        #[derive(Debug, Copy, Clone)]
+        #[repr(C)]
+        pub struct rb_node {
+            pub __rb_parent_color: u64,
+            pub rb_right: *mut rb_node,
+            pub rb_left: *mut rb_node,
+        }
+        impl Default for rb_node {
+            fn default() -> Self {
+                Self {
+                    __rb_parent_color: u64::default(),
+                    rb_right: std::ptr::null_mut(),
+                    rb_left: std::ptr::null_mut(),
+                }
+            }
+        }
+        #[derive(Copy, Clone)]
+        #[repr(C)]
+        pub union __anon_34 {
+            pub cnts: __anon_3,
+            pub __anon_40: __anon_40,
+        }
+        impl std::fmt::Debug for __anon_34 {
+            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                write!(f, "(???)")
+            }
+        }
+        impl Default for __anon_34 {
+            fn default() -> Self {
+                Self {
+                    cnts: __anon_3::default(),
+                }
+            }
+        }
+        #[derive(Debug, Default, Copy, Clone)]
+        #[repr(C)]
+        pub struct qspinlock {
+            pub __anon_41: __anon_41,
+        }
+        #[derive(Debug, Default, Copy, Clone)]
+        #[repr(C)]
+        pub struct raw_spinlock {
+            pub raw_lock: qspinlock,
+        }
+        #[derive(Debug, Copy, Clone)]
+        #[repr(C)]
+        pub struct __anon_35 {
+            pub next: *mut sk_buff,
+            pub prev: *mut sk_buff,
+            pub __anon_42: __anon_42,
+        }
+        impl Default for __anon_35 {
+            fn default() -> Self {
+                Self {
+                    next: std::ptr::null_mut(),
+                    prev: std::ptr::null_mut(),
+                    __anon_42: __anon_42::default(),
+                }
+            }
+        }
+        #[derive(Debug, Copy, Clone)]
+        #[repr(C)]
+        pub struct __anon_36 {
+            pub _skb_refdst: u64,
+            pub destructor: *mut std::ffi::c_void,
+        }
+        impl Default for __anon_36 {
+            fn default() -> Self {
+                Self {
+                    _skb_refdst: u64::default(),
+                    destructor: std::ptr::null_mut(),
+                }
+            }
+        }
+        #[derive(Debug, Default, Copy, Clone)]
+        #[repr(C)]
+        pub struct __anon_37 {
+            pub __pkt_type_offset: [u8; 0],
+            pub __pad_0: [u8; 2],
+            pub __pkt_vlan_present_offset: [u8; 0],
+            pub __pad_2: [u8; 4],
+            pub tc_index: u16,
+            pub __anon_43: __anon_43,
+            pub priority: u32,
+            pub skb_iif: i32,
+            pub hash: u32,
+            pub vlan_proto: u16,
+            pub vlan_tci: u16,
+            pub __anon_44: __anon_44,
+            pub secmark: u32,
+            pub __anon_45: __anon_45,
+            pub __anon_46: __anon_46,
+            pub inner_transport_header: u16,
+            pub inner_network_header: u16,
+            pub inner_mac_header: u16,
+            pub protocol: u16,
+            pub transport_header: u16,
+            pub network_header: u16,
+            pub mac_header: u16,
+        }
+        #[derive(Debug, Default, Copy, Clone)]
+        #[repr(C)]
+        pub struct __anon_38 {
+            pub upper: list_head,
+            pub lower: list_head,
+        }
+        #[derive(Debug, Default, Copy, Clone)]
+        #[repr(C)]
+        pub struct net_device_stats {
+            pub rx_packets: u64,
+            pub tx_packets: u64,
+            pub rx_bytes: u64,
+            pub tx_bytes: u64,
+            pub rx_errors: u64,
+            pub tx_errors: u64,
+            pub rx_dropped: u64,
+            pub tx_dropped: u64,
+            pub multicast: u64,
+            pub collisions: u64,
+            pub rx_length_errors: u64,
+            pub rx_over_errors: u64,
+            pub rx_crc_errors: u64,
+            pub rx_frame_errors: u64,
+            pub rx_fifo_errors: u64,
+            pub rx_missed_errors: u64,
+            pub tx_aborted_errors: u64,
+            pub tx_carrier_errors: u64,
+            pub tx_fifo_errors: u64,
+            pub tx_heartbeat_errors: u64,
+            pub tx_window_errors: u64,
+            pub rx_compressed: u64,
+            pub tx_compressed: u64,
+        }
+        #[derive(Debug, Default, Copy, Clone)]
+        #[repr(C)]
+        pub struct netdev_hw_addr_list {
+            pub list: list_head,
+            pub count: i32,
+            pub __pad_20: [u8; 4],
+        }
+        #[derive(Debug, Copy, Clone, Default, PartialEq, Eq)]
+        #[repr(u32)]
+        pub enum rx_handler_result {
+            #[default]
+            RX_HANDLER_CONSUMED = 0,
+            RX_HANDLER_ANOTHER = 1,
+            RX_HANDLER_EXACT = 2,
+            RX_HANDLER_PASS = 3,
+        }
+        #[derive(Debug, Copy, Clone)]
+        #[repr(C)]
+        pub struct xps_dev_maps {
+            pub rcu: callback_head,
+            pub nr_ids: u32,
+            pub num_tc: i16,
+            pub attr_map: [*mut xps_map; 0],
+        }
+        impl Default for xps_dev_maps {
+            fn default() -> Self {
+                Self {
+                    rcu: callback_head::default(),
+                    nr_ids: u32::default(),
+                    num_tc: i16::default(),
+                    attr_map: [std::ptr::null_mut(); 0],
+                }
+            }
+        }
+        #[derive(Debug, Copy, Clone)]
+        #[repr(C)]
+        pub struct hlist_head {
+            pub first: *mut hlist_node,
+        }
+        impl Default for hlist_head {
+            fn default() -> Self {
+                Self {
+                    first: std::ptr::null_mut(),
+                }
+            }
+        }
+        #[derive(Debug, Default, Copy, Clone)]
+        #[repr(C)]
+        pub struct ref_tracker_dir {}
+        #[derive(Debug, Copy, Clone, Default, PartialEq, Eq)]
+        #[repr(u32)]
+        pub enum netdev_ml_priv_type {
+            #[default]
+            ML_PRIV_NONE = 0,
+            ML_PRIV_CAN = 1,
+        }
+        #[derive(Copy, Clone)]
+        #[repr(C)]
+        pub union __anon_39 {
+            pub lstats: *mut std::ffi::c_void,
+            pub tstats: *mut std::ffi::c_void,
+            pub dstats: *mut std::ffi::c_void,
+        }
+        impl std::fmt::Debug for __anon_39 {
+            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                write!(f, "(???)")
+            }
+        }
+        impl Default for __anon_39 {
+            fn default() -> Self {
+                Self {
+                    lstats: std::ptr::null_mut(),
+                }
+            }
+        }
+        #[derive(Debug, Copy, Clone)]
+        #[repr(C)]
+        pub struct device {
+            pub kobj: kobject,
+            pub parent: *mut device,
+            pub p: *mut std::ffi::c_void,
+            pub init_name: *mut i8,
+            pub r#type: *mut std::ffi::c_void,
+            pub bus: *mut std::ffi::c_void,
+            pub driver: *mut std::ffi::c_void,
+            pub platform_data: *mut std::ffi::c_void,
+            pub driver_data: *mut std::ffi::c_void,
+            pub mutex: mutex,
+            pub links: dev_links_info,
+            pub power: dev_pm_info,
+            pub pm_domain: *mut std::ffi::c_void,
+            pub em_pd: *mut std::ffi::c_void,
+            pub pins: *mut std::ffi::c_void,
+            pub msi: dev_msi_info,
+            pub dma_ops: *mut std::ffi::c_void,
+            pub dma_mask: *mut u64,
+            pub coherent_dma_mask: u64,
+            pub bus_dma_limit: u64,
+            pub dma_range_map: *mut std::ffi::c_void,
+            pub dma_parms: *mut std::ffi::c_void,
+            pub dma_pools: list_head,
+            pub cma_area: *mut std::ffi::c_void,
+            pub dma_io_tlb_mem: *mut std::ffi::c_void,
+            pub archdata: dev_archdata,
+            pub of_node: *mut std::ffi::c_void,
+            pub fwnode: *mut std::ffi::c_void,
+            pub numa_node: i32,
+            pub devt: u32,
+            pub id: u32,
+            pub devres_lock: spinlock,
+            pub devres_head: list_head,
+            pub class: *mut std::ffi::c_void,
+            pub groups: *mut *mut attribute_group,
+            pub release: *mut std::ffi::c_void,
+            pub iommu_group: *mut std::ffi::c_void,
+            pub iommu: *mut std::ffi::c_void,
+            pub physical_location: *mut std::ffi::c_void,
+            pub removable: std::mem::MaybeUninit<device_removable>,
+            pub __pad_764: [u8; 4],
+        }
+        impl Default for device {
+            fn default() -> Self {
+                Self {
+                    kobj: kobject::default(),
+                    parent: std::ptr::null_mut(),
+                    p: std::ptr::null_mut(),
+                    init_name: std::ptr::null_mut(),
+                    r#type: std::ptr::null_mut(),
+                    bus: std::ptr::null_mut(),
+                    driver: std::ptr::null_mut(),
+                    platform_data: std::ptr::null_mut(),
+                    driver_data: std::ptr::null_mut(),
+                    mutex: mutex::default(),
+                    links: dev_links_info::default(),
+                    power: dev_pm_info::default(),
+                    pm_domain: std::ptr::null_mut(),
+                    em_pd: std::ptr::null_mut(),
+                    pins: std::ptr::null_mut(),
+                    msi: dev_msi_info::default(),
+                    dma_ops: std::ptr::null_mut(),
+                    dma_mask: std::ptr::null_mut(),
+                    coherent_dma_mask: u64::default(),
+                    bus_dma_limit: u64::default(),
+                    dma_range_map: std::ptr::null_mut(),
+                    dma_parms: std::ptr::null_mut(),
+                    dma_pools: list_head::default(),
+                    cma_area: std::ptr::null_mut(),
+                    dma_io_tlb_mem: std::ptr::null_mut(),
+                    archdata: dev_archdata::default(),
+                    of_node: std::ptr::null_mut(),
+                    fwnode: std::ptr::null_mut(),
+                    numa_node: i32::default(),
+                    devt: u32::default(),
+                    id: u32::default(),
+                    devres_lock: spinlock::default(),
+                    devres_head: list_head::default(),
+                    class: std::ptr::null_mut(),
+                    groups: std::ptr::null_mut(),
+                    release: std::ptr::null_mut(),
+                    iommu_group: std::ptr::null_mut(),
+                    iommu: std::ptr::null_mut(),
+                    physical_location: std::ptr::null_mut(),
+                    removable: std::mem::MaybeUninit::new(device_removable::default()),
+                    __pad_764: [u8::default(); 4],
+                }
+            }
+        }
+        #[derive(Debug, Copy, Clone)]
+        #[repr(C)]
+        pub struct attribute_group {
+            pub name: *mut i8,
+            pub is_visible: *mut std::ffi::c_void,
+            pub is_bin_visible: *mut std::ffi::c_void,
+            pub attrs: *mut *mut attribute,
+            pub bin_attrs: *mut *mut bin_attribute,
+        }
+        impl Default for attribute_group {
+            fn default() -> Self {
+                Self {
+                    name: std::ptr::null_mut(),
+                    is_visible: std::ptr::null_mut(),
+                    is_bin_visible: std::ptr::null_mut(),
+                    attrs: std::ptr::null_mut(),
+                    bin_attrs: std::ptr::null_mut(),
+                }
+            }
+        }
+        #[derive(Debug, Default, Copy, Clone)]
+        #[repr(C)]
+        pub struct netdev_tc_txq {
+            pub count: u16,
+            pub offset: u16,
+        }
+        #[derive(Debug, Copy, Clone)]
+        #[repr(C)]
+        pub struct bpf_xdp_entity {
+            pub prog: *mut std::ffi::c_void,
+            pub link: *mut std::ffi::c_void,
+        }
+        impl Default for bpf_xdp_entity {
+            fn default() -> Self {
+                Self {
+                    prog: std::ptr::null_mut(),
+                    link: std::ptr::null_mut(),
+                }
+            }
+        }
+        #[derive(Debug, Default, Copy, Clone)]
+        #[repr(C)]
+        pub struct __anon_40 {
+            pub wlocked: u8,
+            pub __lstate: [u8; 3],
+        }
+        #[derive(Copy, Clone)]
+        #[repr(C)]
+        pub union __anon_41 {
+            pub val: __anon_3,
+            pub __anon_47: __anon_47,
+            pub __anon_48: __anon_48,
+        }
+        impl std::fmt::Debug for __anon_41 {
+            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                write!(f, "(???)")
+            }
+        }
+        impl Default for __anon_41 {
+            fn default() -> Self {
+                Self {
+                    val: __anon_3::default(),
+                }
+            }
+        }
+        #[derive(Copy, Clone)]
+        #[repr(C)]
+        pub union __anon_42 {
+            pub dev: *mut net_device,
+            pub dev_scratch: u64,
+        }
+        impl std::fmt::Debug for __anon_42 {
+            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                write!(f, "(???)")
+            }
+        }
+        impl Default for __anon_42 {
+            fn default() -> Self {
+                Self {
+                    dev: std::ptr::null_mut(),
+                }
+            }
+        }
+        #[derive(Copy, Clone)]
+        #[repr(C)]
+        pub union __anon_43 {
+            pub csum: u32,
+            pub __anon_49: __anon_49,
+        }
+        impl std::fmt::Debug for __anon_43 {
+            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                write!(f, "(???)")
+            }
+        }
+        impl Default for __anon_43 {
+            fn default() -> Self {
+                Self {
+                    csum: u32::default(),
+                }
+            }
+        }
+        #[derive(Copy, Clone)]
+        #[repr(C)]
+        pub union __anon_44 {
+            pub napi_id: u32,
+            pub sender_cpu: u32,
+        }
+        impl std::fmt::Debug for __anon_44 {
+            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                write!(f, "(???)")
+            }
+        }
+        impl Default for __anon_44 {
+            fn default() -> Self {
+                Self {
+                    napi_id: u32::default(),
+                }
+            }
+        }
+        #[derive(Copy, Clone)]
+        #[repr(C)]
+        pub union __anon_45 {
+            pub mark: u32,
+            pub reserved_tailroom: u32,
+        }
+        impl std::fmt::Debug for __anon_45 {
+            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                write!(f, "(???)")
+            }
+        }
+        impl Default for __anon_45 {
+            fn default() -> Self {
+                Self {
+                    mark: u32::default(),
+                }
+            }
+        }
+        #[derive(Copy, Clone)]
+        #[repr(C)]
+        pub union __anon_46 {
+            pub inner_protocol: u16,
+            pub inner_ipproto: u8,
+        }
+        impl std::fmt::Debug for __anon_46 {
+            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                write!(f, "(???)")
+            }
+        }
+        impl Default for __anon_46 {
+            fn default() -> Self {
+                Self {
+                    inner_protocol: u16::default(),
+                }
+            }
+        }
+        #[derive(Debug, Default, Copy, Clone)]
+        #[repr(C)]
+        pub struct xps_map {
+            pub len: u32,
+            pub alloc_len: u32,
+            pub rcu: callback_head,
+            pub queues: [u16; 0],
+        }
+        #[derive(Debug, Copy, Clone)]
+        #[repr(C)]
+        pub struct kobject {
+            pub name: *mut i8,
+            pub entry: list_head,
+            pub parent: *mut kobject,
+            pub kset: *mut std::ffi::c_void,
+            pub ktype: *mut std::ffi::c_void,
+            pub sd: *mut std::ffi::c_void,
+            pub kref: kref,
+            pub __pad_60: [u8; 4],
+        }
+        impl Default for kobject {
+            fn default() -> Self {
+                Self {
+                    name: std::ptr::null_mut(),
+                    entry: list_head::default(),
+                    parent: std::ptr::null_mut(),
+                    kset: std::ptr::null_mut(),
+                    ktype: std::ptr::null_mut(),
+                    sd: std::ptr::null_mut(),
+                    kref: kref::default(),
+                    __pad_60: [u8::default(); 4],
+                }
+            }
+        }
+        #[derive(Debug, Default, Copy, Clone)]
+        #[repr(C)]
+        pub struct mutex {
+            pub owner: __anon_15,
+            pub wait_lock: raw_spinlock,
+            pub osq: optimistic_spin_queue,
+            pub wait_list: list_head,
+        }
+        #[derive(Debug, Copy, Clone)]
+        #[repr(C)]
+        pub struct dev_links_info {
+            pub suppliers: list_head,
+            pub consumers: list_head,
+            pub defer_sync: list_head,
+            pub status: std::mem::MaybeUninit<dl_dev_state>,
+            pub __pad_52: [u8; 4],
+        }
+        impl Default for dev_links_info {
+            fn default() -> Self {
+                Self {
+                    suppliers: list_head::default(),
+                    consumers: list_head::default(),
+                    defer_sync: list_head::default(),
+                    status: std::mem::MaybeUninit::new(dl_dev_state::default()),
+                    __pad_52: [u8::default(); 4],
+                }
+            }
+        }
+        #[derive(Debug, Copy, Clone)]
+        #[repr(C)]
+        pub struct dev_pm_info {
+            pub power_state: pm_message,
+            pub __pad_4: [u8; 4],
+            pub driver_flags: u32,
+            pub lock: spinlock,
+            pub entry: list_head,
+            pub completion: completion,
+            pub wakeup: *mut std::ffi::c_void,
+            pub __pad_72: [u8; 8],
+            pub suspend_timer: hrtimer,
+            pub timer_expires: u64,
+            pub work: work_struct,
+            pub wait_queue: wait_queue_head,
+            pub wakeirq: *mut std::ffi::c_void,
+            pub usage_count: __anon_3,
+            pub child_count: __anon_3,
+            pub __pad_240: [u8; 4],
+            pub links_count: u32,
+            pub request: std::mem::MaybeUninit<rpm_request>,
+            pub runtime_status: std::mem::MaybeUninit<rpm_status>,
+            pub last_status: std::mem::MaybeUninit<rpm_status>,
+            pub runtime_error: i32,
+            pub autosuspend_delay: i32,
+            pub __pad_268: [u8; 4],
+            pub last_busy: u64,
+            pub active_time: u64,
+            pub suspended_time: u64,
+            pub accounting_timestamp: u64,
+            pub subsys_data: *mut std::ffi::c_void,
+            pub set_latency_tolerance: *mut std::ffi::c_void,
+            pub qos: *mut std::ffi::c_void,
+        }
+        impl Default for dev_pm_info {
+            fn default() -> Self {
+                Self {
+                    power_state: pm_message::default(),
+                    __pad_4: [u8::default(); 4],
+                    driver_flags: u32::default(),
+                    lock: spinlock::default(),
+                    entry: list_head::default(),
+                    completion: completion::default(),
+                    wakeup: std::ptr::null_mut(),
+                    __pad_72: [u8::default(); 8],
+                    suspend_timer: hrtimer::default(),
+                    timer_expires: u64::default(),
+                    work: work_struct::default(),
+                    wait_queue: wait_queue_head::default(),
+                    wakeirq: std::ptr::null_mut(),
+                    usage_count: __anon_3::default(),
+                    child_count: __anon_3::default(),
+                    __pad_240: [u8::default(); 4],
+                    links_count: u32::default(),
+                    request: std::mem::MaybeUninit::new(rpm_request::default()),
+                    runtime_status: std::mem::MaybeUninit::new(rpm_status::default()),
+                    last_status: std::mem::MaybeUninit::new(rpm_status::default()),
+                    runtime_error: i32::default(),
+                    autosuspend_delay: i32::default(),
+                    __pad_268: [u8::default(); 4],
+                    last_busy: u64::default(),
+                    active_time: u64::default(),
+                    suspended_time: u64::default(),
+                    accounting_timestamp: u64::default(),
+                    subsys_data: std::ptr::null_mut(),
+                    set_latency_tolerance: std::ptr::null_mut(),
+                    qos: std::ptr::null_mut(),
+                }
+            }
+        }
+        #[derive(Debug, Copy, Clone)]
+        #[repr(C)]
+        pub struct dev_msi_info {
+            pub domain: *mut std::ffi::c_void,
+            pub data: *mut std::ffi::c_void,
+        }
+        impl Default for dev_msi_info {
+            fn default() -> Self {
+                Self {
+                    domain: std::ptr::null_mut(),
+                    data: std::ptr::null_mut(),
+                }
+            }
+        }
+        #[derive(Debug, Default, Copy, Clone)]
+        #[repr(C)]
+        pub struct dev_archdata {}
+        #[derive(Debug, Copy, Clone, Default, PartialEq, Eq)]
+        #[repr(u32)]
+        pub enum device_removable {
+            #[default]
+            DEVICE_REMOVABLE_NOT_SUPPORTED = 0,
+            DEVICE_REMOVABLE_UNKNOWN = 1,
+            DEVICE_FIXED = 2,
+            DEVICE_REMOVABLE = 3,
+        }
+        #[derive(Debug, Copy, Clone)]
+        #[repr(C)]
+        pub struct attribute {
+            pub name: *mut i8,
+            pub mode: u16,
+            pub __pad_10: [u8; 6],
+        }
+        impl Default for attribute {
+            fn default() -> Self {
+                Self {
+                    name: std::ptr::null_mut(),
+                    mode: u16::default(),
+                    __pad_10: [u8::default(); 6],
+                }
+            }
+        }
+        #[derive(Debug, Copy, Clone)]
+        #[repr(C)]
+        pub struct bin_attribute {
+            pub attr: attribute,
+            pub size: u64,
+            pub private: *mut std::ffi::c_void,
+            pub f_mapping: *mut std::ffi::c_void,
+            pub read: *mut std::ffi::c_void,
+            pub write: *mut std::ffi::c_void,
+            pub mmap: *mut std::ffi::c_void,
+        }
+        impl Default for bin_attribute {
+            fn default() -> Self {
+                Self {
+                    attr: attribute::default(),
+                    size: u64::default(),
+                    private: std::ptr::null_mut(),
+                    f_mapping: std::ptr::null_mut(),
+                    read: std::ptr::null_mut(),
+                    write: std::ptr::null_mut(),
+                    mmap: std::ptr::null_mut(),
+                }
+            }
+        }
+        #[derive(Debug, Default, Copy, Clone)]
+        #[repr(C)]
+        pub struct __anon_47 {
+            pub locked: u8,
+            pub pending: u8,
+        }
+        #[derive(Debug, Default, Copy, Clone)]
+        #[repr(C)]
+        pub struct __anon_48 {
+            pub locked_pending: u16,
+            pub tail: u16,
+        }
+        #[derive(Debug, Default, Copy, Clone)]
+        #[repr(C)]
+        pub struct __anon_49 {
+            pub csum_start: u16,
+            pub csum_offset: u16,
+        }
+        #[derive(Debug, Default, Copy, Clone)]
+        #[repr(C)]
+        pub struct kref {
+            pub refcount: refcount_struct,
+        }
+        #[derive(Debug, Default, Copy, Clone)]
+        #[repr(C)]
+        pub struct optimistic_spin_queue {
+            pub tail: __anon_3,
+        }
+        #[derive(Debug, Copy, Clone, Default, PartialEq, Eq)]
+        #[repr(u32)]
+        pub enum dl_dev_state {
+            #[default]
+            DL_DEV_NO_DRIVER = 0,
+            DL_DEV_PROBING = 1,
+            DL_DEV_DRIVER_BOUND = 2,
+            DL_DEV_UNBINDING = 3,
+        }
+        #[derive(Debug, Default, Copy, Clone)]
+        #[repr(C)]
+        pub struct pm_message {
+            pub event: i32,
+        }
+        #[derive(Debug, Default, Copy, Clone)]
+        #[repr(C)]
+        pub struct completion {
+            pub done: u32,
+            pub __pad_4: [u8; 4],
+            pub wait: swait_queue_head,
+        }
+        #[derive(Debug, Copy, Clone)]
+        #[repr(C)]
+        pub struct hrtimer {
+            pub node: timerqueue_node,
+            pub _softexpires: i64,
+            pub function: *mut std::ffi::c_void,
+            pub base: *mut std::ffi::c_void,
+            pub state: u8,
+            pub is_rel: u8,
+            pub is_soft: u8,
+            pub is_hard: u8,
+            pub __pad_60: [u8; 4],
+            pub rh_reserved1: u64,
+            pub rh_reserved2: u64,
+        }
+        impl Default for hrtimer {
+            fn default() -> Self {
+                Self {
+                    node: timerqueue_node::default(),
+                    _softexpires: i64::default(),
+                    function: std::ptr::null_mut(),
+                    base: std::ptr::null_mut(),
+                    state: u8::default(),
+                    is_rel: u8::default(),
+                    is_soft: u8::default(),
+                    is_hard: u8::default(),
+                    __pad_60: [u8::default(); 4],
+                    rh_reserved1: u64::default(),
+                    rh_reserved2: u64::default(),
+                }
+            }
+        }
+        #[derive(Debug, Copy, Clone)]
+        #[repr(C)]
+        pub struct work_struct {
+            pub data: __anon_15,
+            pub entry: list_head,
+            pub func: *mut std::ffi::c_void,
+        }
+        impl Default for work_struct {
+            fn default() -> Self {
+                Self {
+                    data: __anon_15::default(),
+                    entry: list_head::default(),
+                    func: std::ptr::null_mut(),
+                }
+            }
+        }
+        #[derive(Debug, Copy, Clone, Default, PartialEq, Eq)]
+        #[repr(u32)]
+        pub enum rpm_request {
+            #[default]
+            RPM_REQ_NONE = 0,
+            RPM_REQ_IDLE = 1,
+            RPM_REQ_SUSPEND = 2,
+            RPM_REQ_AUTOSUSPEND = 3,
+            RPM_REQ_RESUME = 4,
+        }
+        #[derive(Debug, Copy, Clone, Default, PartialEq, Eq)]
+        #[repr(i32)]
+        pub enum rpm_status {
+            #[default]
+            RPM_INVALID = -1,
+            RPM_ACTIVE = 0,
+            RPM_RESUMING = 1,
+            RPM_SUSPENDED = 2,
+            RPM_SUSPENDING = 3,
+        }
+        #[derive(Debug, Copy, Clone)]
+        #[repr(C)]
+        pub struct address_space {
+            pub host: *mut std::ffi::c_void,
+            pub i_pages: xarray,
+            pub invalidate_lock: rw_semaphore,
+            pub gfp_mask: u32,
+            pub i_mmap_writable: __anon_3,
+            pub i_mmap: rb_root_cached,
+            pub i_mmap_rwsem: rw_semaphore,
+            pub nrpages: u64,
+            pub writeback_index: u64,
+            pub a_ops: *mut std::ffi::c_void,
+            pub flags: u64,
+            pub wb_err: u32,
+            pub private_lock: spinlock,
+            pub private_list: list_head,
+            pub private_data: *mut std::ffi::c_void,
+            pub rh_reserved1: u64,
+            pub rh_reserved2: u64,
+            pub rh_reserved3: u64,
+            pub rh_reserved4: u64,
+        }
+        impl Default for address_space {
+            fn default() -> Self {
+                Self {
+                    host: std::ptr::null_mut(),
+                    i_pages: xarray::default(),
+                    invalidate_lock: rw_semaphore::default(),
+                    gfp_mask: u32::default(),
+                    i_mmap_writable: __anon_3::default(),
+                    i_mmap: rb_root_cached::default(),
+                    i_mmap_rwsem: rw_semaphore::default(),
+                    nrpages: u64::default(),
+                    writeback_index: u64::default(),
+                    a_ops: std::ptr::null_mut(),
+                    flags: u64::default(),
+                    wb_err: u32::default(),
+                    private_lock: spinlock::default(),
+                    private_list: list_head::default(),
+                    private_data: std::ptr::null_mut(),
+                    rh_reserved1: u64::default(),
+                    rh_reserved2: u64::default(),
+                    rh_reserved3: u64::default(),
+                    rh_reserved4: u64::default(),
+                }
+            }
+        }
+        #[derive(Debug, Default, Copy, Clone)]
+        #[repr(C)]
+        pub struct swait_queue_head {
+            pub lock: raw_spinlock,
+            pub __pad_4: [u8; 4],
+            pub task_list: list_head,
+        }
+        #[derive(Debug, Default, Copy, Clone)]
+        #[repr(C)]
+        pub struct timerqueue_node {
+            pub node: rb_node,
+            pub expires: i64,
+        }
+        #[derive(Debug, Copy, Clone, Default, PartialEq, Eq)]
+        #[repr(u32)]
+        pub enum hrtimer_restart {
+            #[default]
+            HRTIMER_NORESTART = 0,
+            HRTIMER_RESTART = 1,
+        }
+        #[derive(Debug, Copy, Clone)]
+        #[repr(C)]
+        pub struct xarray {
+            pub xa_lock: spinlock,
+            pub xa_flags: u32,
+            pub xa_head: *mut std::ffi::c_void,
+        }
+        impl Default for xarray {
+            fn default() -> Self {
+                Self {
+                    xa_lock: spinlock::default(),
+                    xa_flags: u32::default(),
+                    xa_head: std::ptr::null_mut(),
+                }
+            }
+        }
+        #[derive(Debug, Default, Copy, Clone)]
+        #[repr(C)]
+        pub struct rw_semaphore {
+            pub count: __anon_15,
+            pub owner: __anon_15,
+            pub osq: optimistic_spin_queue,
+            pub wait_lock: raw_spinlock,
+            pub wait_list: list_head,
+        }
+        #[derive(Debug, Copy, Clone)]
+        #[repr(C)]
+        pub struct rb_root_cached {
+            pub rb_root: rb_root,
+            pub rb_leftmost: *mut rb_node,
+        }
+        impl Default for rb_root_cached {
+            fn default() -> Self {
+                Self {
+                    rb_root: rb_root::default(),
+                    rb_leftmost: std::ptr::null_mut(),
+                }
+            }
+        }
+        #[derive(Debug, Copy, Clone, Default, PartialEq, Eq)]
+        #[repr(u32)]
+        pub enum __anon_50 {
+            #[default]
+            NETREG_UNINITIALIZED = 0,
+            NETREG_REGISTERED = 1,
+            NETREG_UNREGISTERING = 2,
+            NETREG_UNREGISTERED = 3,
+            NETREG_RELEASED = 4,
+            NETREG_DUMMY = 5,
+        }
+        #[derive(Debug, Copy, Clone, Default, PartialEq, Eq)]
+        #[repr(u32)]
+        pub enum __anon_51 {
+            #[default]
+            RTNL_LINK_INITIALIZED = 0,
+            RTNL_LINK_INITIALIZING = 1,
+        }
+        #[derive(Debug, Copy, Clone)]
+        #[repr(C)]
+        pub struct file {
+            pub f_u: __anon_52,
+            pub f_path: path,
+            pub f_inode: *mut std::ffi::c_void,
+            pub f_op: *mut std::ffi::c_void,
+            pub f_lock: spinlock,
+            pub __pad_52: [u8; 4],
+            pub f_count: __anon_15,
+            pub f_flags: u32,
+            pub f_mode: u32,
+            pub f_pos_lock: mutex,
+            pub f_pos: i64,
+            pub f_owner: fown_struct,
+            pub f_cred: *mut cred,
+            pub f_ra: file_ra_state,
+            pub f_version: u64,
+            pub f_security: *mut std::ffi::c_void,
+            pub private_data: *mut std::ffi::c_void,
+            pub f_ep: *mut hlist_head,
+            pub f_mapping: *mut address_space,
+            pub f_wb_err: u32,
+            pub f_sb_err: u32,
+        }
+        impl Default for file {
+            fn default() -> Self {
+                Self {
+                    f_u: __anon_52::default(),
+                    f_path: path::default(),
+                    f_inode: std::ptr::null_mut(),
+                    f_op: std::ptr::null_mut(),
+                    f_lock: spinlock::default(),
+                    __pad_52: [u8::default(); 4],
+                    f_count: __anon_15::default(),
+                    f_flags: u32::default(),
+                    f_mode: u32::default(),
+                    f_pos_lock: mutex::default(),
+                    f_pos: i64::default(),
+                    f_owner: fown_struct::default(),
+                    f_cred: std::ptr::null_mut(),
+                    f_ra: file_ra_state::default(),
+                    f_version: u64::default(),
+                    f_security: std::ptr::null_mut(),
+                    private_data: std::ptr::null_mut(),
+                    f_ep: std::ptr::null_mut(),
+                    f_mapping: std::ptr::null_mut(),
+                    f_wb_err: u32::default(),
+                    f_sb_err: u32::default(),
+                }
+            }
+        }
+        #[derive(Copy, Clone)]
+        #[repr(C)]
+        pub union __anon_52 {
+            pub fu_llist: llist_node,
+            pub fu_rcuhead: callback_head,
+        }
+        impl std::fmt::Debug for __anon_52 {
+            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                write!(f, "(???)")
+            }
+        }
+        impl Default for __anon_52 {
+            fn default() -> Self {
+                Self {
+                    fu_llist: llist_node::default(),
+                }
+            }
+        }
+        #[derive(Debug, Copy, Clone)]
+        #[repr(C)]
+        pub struct path {
+            pub mnt: *mut std::ffi::c_void,
+            pub dentry: *mut std::ffi::c_void,
+        }
+        impl Default for path {
+            fn default() -> Self {
+                Self {
+                    mnt: std::ptr::null_mut(),
+                    dentry: std::ptr::null_mut(),
+                }
+            }
+        }
+        #[derive(Debug, Copy, Clone)]
+        #[repr(C)]
+        pub struct fown_struct {
+            pub lock: __anon_7,
+            pub pid: *mut std::ffi::c_void,
+            pub pid_type: std::mem::MaybeUninit<pid_type>,
+            pub uid: __anon_8,
+            pub euid: __anon_8,
+            pub signum: i32,
+        }
+        impl Default for fown_struct {
+            fn default() -> Self {
+                Self {
+                    lock: __anon_7::default(),
+                    pid: std::ptr::null_mut(),
+                    pid_type: std::mem::MaybeUninit::new(pid_type::default()),
+                    uid: __anon_8::default(),
+                    euid: __anon_8::default(),
+                    signum: i32::default(),
+                }
+            }
+        }
+        #[derive(Debug, Default, Copy, Clone)]
+        #[repr(C)]
+        pub struct file_ra_state {
+            pub start: u64,
+            pub size: u32,
+            pub async_size: u32,
+            pub ra_pages: u32,
+            pub mmap_miss: u32,
+            pub prev_pos: i64,
+        }
+        #[derive(Debug, Copy, Clone, Default, PartialEq, Eq)]
+        #[repr(u32)]
+        pub enum pid_type {
+            #[default]
+            PIDTYPE_PID = 0,
+            PIDTYPE_TGID = 1,
+            PIDTYPE_PGID = 2,
+            PIDTYPE_SID = 3,
+            PIDTYPE_MAX = 4,
+        }
+        #[derive(Debug, Copy, Clone)]
+        #[repr(C)]
+        pub struct vm_area_struct {
+            pub vm_start: u64,
+            pub vm_end: u64,
+            pub vm_next: *mut vm_area_struct,
+            pub vm_prev: *mut vm_area_struct,
+            pub vm_rb: rb_node,
+            pub rb_subtree_gap: u64,
+            pub vm_mm: *mut std::ffi::c_void,
+            pub vm_page_prot: pgprot,
+            pub vm_flags: u64,
+            pub __anon_53: __anon_53,
+            pub anon_vma_chain: list_head,
+            pub anon_vma: *mut std::ffi::c_void,
+            pub vm_ops: *mut std::ffi::c_void,
+            pub vm_pgoff: u64,
+            pub vm_file: *mut file,
+            pub vm_private_data: *mut std::ffi::c_void,
+            pub swap_readahead_info: __anon_15,
+            pub vm_policy: *mut std::ffi::c_void,
+            pub vm_userfaultfd_ctx: vm_userfaultfd_ctx,
+            pub rh_reserved1: u64,
+            pub rh_reserved2: u64,
+            pub rh_reserved3: u64,
+            pub rh_reserved4: u64,
+        }
+        impl Default for vm_area_struct {
+            fn default() -> Self {
+                Self {
+                    vm_start: u64::default(),
+                    vm_end: u64::default(),
+                    vm_next: std::ptr::null_mut(),
+                    vm_prev: std::ptr::null_mut(),
+                    vm_rb: rb_node::default(),
+                    rb_subtree_gap: u64::default(),
+                    vm_mm: std::ptr::null_mut(),
+                    vm_page_prot: pgprot::default(),
+                    vm_flags: u64::default(),
+                    __anon_53: __anon_53::default(),
+                    anon_vma_chain: list_head::default(),
+                    anon_vma: std::ptr::null_mut(),
+                    vm_ops: std::ptr::null_mut(),
+                    vm_pgoff: u64::default(),
+                    vm_file: std::ptr::null_mut(),
+                    vm_private_data: std::ptr::null_mut(),
+                    swap_readahead_info: __anon_15::default(),
+                    vm_policy: std::ptr::null_mut(),
+                    vm_userfaultfd_ctx: vm_userfaultfd_ctx::default(),
+                    rh_reserved1: u64::default(),
+                    rh_reserved2: u64::default(),
+                    rh_reserved3: u64::default(),
+                    rh_reserved4: u64::default(),
+                }
+            }
+        }
+        #[derive(Debug, Default, Copy, Clone)]
+        #[repr(C)]
+        pub struct pgprot {
+            pub pgprot: u64,
+        }
+        #[derive(Copy, Clone)]
+        #[repr(C)]
+        pub union __anon_53 {
+            pub shared: __anon_54,
+            pub anon_name: *mut std::ffi::c_void,
+        }
+        impl std::fmt::Debug for __anon_53 {
+            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                write!(f, "(???)")
+            }
+        }
+        impl Default for __anon_53 {
+            fn default() -> Self {
+                Self {
+                    shared: __anon_54::default(),
+                }
+            }
+        }
+        #[derive(Debug, Copy, Clone)]
+        #[repr(C)]
+        pub struct vm_userfaultfd_ctx {
+            pub ctx: *mut std::ffi::c_void,
+        }
+        impl Default for vm_userfaultfd_ctx {
+            fn default() -> Self {
+                Self {
+                    ctx: std::ptr::null_mut(),
+                }
+            }
+        }
+        #[derive(Debug, Default, Copy, Clone)]
+        #[repr(C)]
+        pub struct __anon_54 {
+            pub rb: rb_node,
+            pub rb_subtree_last: u64,
+        }
+        #[derive(Debug, Copy, Clone)]
+        #[repr(C)]
+        pub struct __anon_55 {
+            pub r#type: *mut [i32; 1],
+            pub max_entries: *mut [i32; 10240],
+            pub key: *mut u32,
+            pub value: *mut *mut sock,
+        }
+        impl Default for __anon_55 {
+            fn default() -> Self {
+                Self {
+                    r#type: std::ptr::null_mut(),
+                    max_entries: std::ptr::null_mut(),
+                    key: std::ptr::null_mut(),
+                    value: std::ptr::null_mut(),
+                }
+            }
+        }
+        #[derive(Debug, Copy, Clone)]
+        #[repr(C)]
+        pub struct __anon_56 {
+            pub r#type: *mut [i32; 4],
+            pub key_size: *mut [i32; 4],
+            pub value_size: *mut [i32; 4],
+        }
+        impl Default for __anon_56 {
+            fn default() -> Self {
+                Self {
+                    r#type: std::ptr::null_mut(),
+                    key_size: std::ptr::null_mut(),
+                    value_size: std::ptr::null_mut(),
+                }
+            }
+        }
+        #[derive(Debug, Default, Copy, Clone)]
+        #[repr(C)]
+        pub struct pt_regs {
+            pub r15: u64,
+            pub r14: u64,
+            pub r13: u64,
+            pub r12: u64,
+            pub bp: u64,
+            pub bx: u64,
+            pub r11: u64,
+            pub r10: u64,
+            pub r9: u64,
+            pub r8: u64,
+            pub ax: u64,
+            pub cx: u64,
+            pub dx: u64,
+            pub si: u64,
+            pub di: u64,
+            pub orig_ax: u64,
+            pub ip: u64,
+            pub cs: u64,
+            pub flags: u64,
+            pub sp: u64,
+            pub ss: u64,
+        }
+        #[derive(Debug, Default, Copy, Clone)]
+        #[repr(C)]
+        pub struct sockaddr_in {
+            pub sin_family: u16,
+            pub sin_port: u16,
+            pub sin_addr: in_addr,
+            pub __pad: [u8; 8],
+        }
+        #[derive(Debug, Default, Copy, Clone)]
+        #[repr(C)]
+        pub struct in_addr {
+            pub s_addr: u32,
+        }
+        #[derive(Debug, Copy, Clone)]
+        #[repr(C)]
+        pub struct event {
+            pub tag: u8,
+            pub ip: [u8; 4],
+            pub hostname: [u8; 84],
+        }
+        impl Default for event {
+            fn default() -> Self {
+                Self {
+                    tag: u8::default(),
+                    ip: [u8::default(); 4],
+                    hostname: [u8::default(); 84],
+                }
+            }
+        }
         #[derive(Debug, Copy, Clone)]
         #[repr(C)]
         pub struct rodata {
@@ -205,46 +3155,60 @@ mod imp {
         }
         #[derive(Debug, Copy, Clone)]
         #[repr(C)]
-        pub struct event {
-            pub tag: u8,
-            pub ip: [u8; 4],
-            pub hostname: [u8; 84],
+        pub struct license {
+            pub LICENSE: [i8; 13],
         }
-        impl Default for event {
-            fn default() -> Self {
-                event {
-                    tag: u8::default(),
-                    ip: [u8::default(); 4],
-                    hostname: [u8::default(); 84],
-                }
-            }
-        }
-
-        #[derive(Debug, Clone)]
+        #[derive(Debug, Copy, Clone)]
         #[repr(C)]
-        pub struct struct_ops {}
-
-        impl struct_ops {}
+        pub struct maps {
+            pub lookups: __anon_1,
+            pub hostnames: __anon_1,
+            pub sockets: __anon_55,
+            pub events: __anon_56,
+        }
+    }
+    pub struct OpenTraceconSkel<'obj> {
+        obj: OwnedRef<'obj, libbpf_rs::OpenObject>,
+        pub maps: OpenTraceconMaps<'obj>,
+        pub progs: OpenTraceconProgs<'obj>,
+        pub struct_ops: StructOps,
+        skel_config: libbpf_rs::__internal_skel::ObjectSkeletonConfig<'obj>,
     }
 
-    pub struct OpenTraceconSkel<'a> {
-        pub obj: libbpf_rs::OpenObject,
-        pub struct_ops: tracecon_types::struct_ops,
-        skel_config: libbpf_rs::__internal_skel::ObjectSkeletonConfig<'a>,
-    }
+    impl<'obj> OpenSkel<'obj> for OpenTraceconSkel<'obj> {
+        type Output = TraceconSkel<'obj>;
+        fn load(self) -> libbpf_rs::Result<TraceconSkel<'obj>> {
+            let skel_ptr = self.skel_config.as_libbpf_object().as_ptr();
 
-    impl<'a> OpenSkel for OpenTraceconSkel<'a> {
-        type Output = TraceconSkel<'a>;
-        fn load(mut self) -> libbpf_rs::Result<TraceconSkel<'a>> {
-            let ret = unsafe { libbpf_sys::bpf_object__load_skeleton(self.skel_config.get()) };
+            let ret = unsafe { libbpf_sys::bpf_object__load_skeleton(skel_ptr) };
             if ret != 0 {
                 return Err(libbpf_rs::Error::from_raw_os_error(-ret));
             }
 
-            let obj = unsafe { libbpf_rs::Object::from_ptr(self.obj.take_ptr())? };
+            let obj_ref = self.obj.take();
+            let open_obj = std::mem::replace(obj_ref, std::mem::MaybeUninit::uninit());
+            // SAFETY: `open_obj` is guaranteed to be properly
+            //         initialized as it came from an `OwnedRef`.
+            let obj_ptr = unsafe { open_obj.assume_init().take_ptr() };
+            // SAFETY: `obj_ptr` points to a loaded object after
+            //         skeleton load.
+            let obj = unsafe { libbpf_rs::Object::from_ptr(obj_ptr) };
+            // SAFETY: `OpenObject` and `Object` are guaranteed to
+            //         have the same memory layout.
+            let obj_ref = unsafe {
+                std::mem::transmute::<
+                    &'obj mut std::mem::MaybeUninit<libbpf_rs::OpenObject>,
+                    &'obj mut std::mem::MaybeUninit<libbpf_rs::Object>,
+                >(obj_ref)
+            };
+            let _obj = obj_ref.write(obj);
+            // SAFETY: We just wrote initialized data to `obj_ref`.
+            let mut obj_ref = unsafe { OwnedRef::new(obj_ref) };
 
             Ok(TraceconSkel {
-                obj,
+                maps: unsafe { TraceconMaps::new(&self.skel_config, obj_ref.as_mut())? },
+                progs: TraceconProgs::new(self.progs),
+                obj: obj_ref,
                 struct_ops: self.struct_ops,
                 skel_config: self.skel_config,
                 links: TraceconLinks::default(),
@@ -252,183 +3216,13 @@ mod imp {
         }
 
         fn open_object(&self) -> &libbpf_rs::OpenObject {
-            &self.obj
+            self.obj.as_ref()
         }
 
         fn open_object_mut(&mut self) -> &mut libbpf_rs::OpenObject {
-            &mut self.obj
+            self.obj.as_mut()
         }
     }
-    impl OpenTraceconSkel<'_> {
-        pub fn progs_mut(&mut self) -> OpenTraceconProgsMut<'_> {
-            OpenTraceconProgsMut {
-                inner: &mut self.obj,
-            }
-        }
-
-        pub fn progs(&self) -> OpenTraceconProgs<'_> {
-            OpenTraceconProgs { inner: &self.obj }
-        }
-
-        pub fn maps_mut(&mut self) -> OpenTraceconMapsMut<'_> {
-            OpenTraceconMapsMut {
-                inner: &mut self.obj,
-            }
-        }
-
-        pub fn maps(&self) -> OpenTraceconMaps<'_> {
-            OpenTraceconMaps { inner: &self.obj }
-        }
-
-        pub fn rodata_raw(&self) -> *const tracecon_types::rodata {
-            self.skel_config
-                .map_mmap_ptr(4)
-                .unwrap()
-                .cast::<tracecon_types::rodata>()
-        }
-
-        pub fn rodata(&self) -> &tracecon_types::rodata {
-            unsafe { &*self.rodata_raw() }
-        }
-
-        pub fn rodata_mut_raw(&mut self) -> *mut tracecon_types::rodata {
-            self.skel_config
-                .map_mmap_ptr_mut(4)
-                .unwrap()
-                .cast::<tracecon_types::rodata>()
-        }
-
-        pub fn rodata_mut(&mut self) -> &mut tracecon_types::rodata {
-            unsafe { &mut *self.rodata_mut_raw() }
-        }
-
-        pub fn bss_raw(&self) -> *const tracecon_types::bss {
-            self.skel_config
-                .map_mmap_ptr(5)
-                .unwrap()
-                .cast::<tracecon_types::bss>()
-        }
-
-        pub fn bss(&self) -> &tracecon_types::bss {
-            unsafe { &*self.bss_raw() }
-        }
-
-        pub fn bss_mut_raw(&mut self) -> *mut tracecon_types::bss {
-            self.skel_config
-                .map_mmap_ptr_mut(5)
-                .unwrap()
-                .cast::<tracecon_types::bss>()
-        }
-
-        pub fn bss_mut(&mut self) -> &mut tracecon_types::bss {
-            unsafe { &mut *self.bss_mut_raw() }
-        }
-    }
-
-    pub struct TraceconMapsMut<'a> {
-        inner: &'a mut libbpf_rs::Object,
-    }
-
-    impl TraceconMapsMut<'_> {
-        pub fn lookups(&mut self) -> &mut libbpf_rs::Map {
-            self.inner.map_mut("lookups").unwrap()
-        }
-
-        pub fn hostnames(&mut self) -> &mut libbpf_rs::Map {
-            self.inner.map_mut("hostnames").unwrap()
-        }
-
-        pub fn sockets(&mut self) -> &mut libbpf_rs::Map {
-            self.inner.map_mut("sockets").unwrap()
-        }
-
-        pub fn events(&mut self) -> &mut libbpf_rs::Map {
-            self.inner.map_mut("events").unwrap()
-        }
-
-        pub fn rodata(&mut self) -> &mut libbpf_rs::Map {
-            self.inner.map_mut("tracecon.rodata").unwrap()
-        }
-
-        pub fn bss(&mut self) -> &mut libbpf_rs::Map {
-            self.inner.map_mut("tracecon.bss").unwrap()
-        }
-    }
-
-    pub struct TraceconMaps<'a> {
-        inner: &'a libbpf_rs::Object,
-    }
-
-    impl TraceconMaps<'_> {
-        pub fn lookups(&self) -> &libbpf_rs::Map {
-            self.inner.map("lookups").unwrap()
-        }
-
-        pub fn hostnames(&self) -> &libbpf_rs::Map {
-            self.inner.map("hostnames").unwrap()
-        }
-
-        pub fn sockets(&self) -> &libbpf_rs::Map {
-            self.inner.map("sockets").unwrap()
-        }
-
-        pub fn events(&self) -> &libbpf_rs::Map {
-            self.inner.map("events").unwrap()
-        }
-
-        pub fn rodata(&self) -> &libbpf_rs::Map {
-            self.inner.map("tracecon.rodata").unwrap()
-        }
-
-        pub fn bss(&self) -> &libbpf_rs::Map {
-            self.inner.map("tracecon.bss").unwrap()
-        }
-    }
-
-    pub struct TraceconProgs<'a> {
-        inner: &'a libbpf_rs::Object,
-    }
-
-    impl TraceconProgs<'_> {
-        pub fn getaddrinfo_enter(&self) -> &libbpf_rs::Program {
-            self.inner.prog("getaddrinfo_enter").unwrap()
-        }
-
-        pub fn getaddrinfo_exit(&self) -> &libbpf_rs::Program {
-            self.inner.prog("getaddrinfo_exit").unwrap()
-        }
-
-        pub fn tcp_v4_connect_enter(&self) -> &libbpf_rs::Program {
-            self.inner.prog("tcp_v4_connect_enter").unwrap()
-        }
-
-        pub fn tcp_v4_connect_exit(&self) -> &libbpf_rs::Program {
-            self.inner.prog("tcp_v4_connect_exit").unwrap()
-        }
-    }
-
-    pub struct TraceconProgsMut<'a> {
-        inner: &'a mut libbpf_rs::Object,
-    }
-
-    impl TraceconProgsMut<'_> {
-        pub fn getaddrinfo_enter(&mut self) -> &mut libbpf_rs::Program {
-            self.inner.prog_mut("getaddrinfo_enter").unwrap()
-        }
-
-        pub fn getaddrinfo_exit(&mut self) -> &mut libbpf_rs::Program {
-            self.inner.prog_mut("getaddrinfo_exit").unwrap()
-        }
-
-        pub fn tcp_v4_connect_enter(&mut self) -> &mut libbpf_rs::Program {
-            self.inner.prog_mut("tcp_v4_connect_enter").unwrap()
-        }
-
-        pub fn tcp_v4_connect_exit(&mut self) -> &mut libbpf_rs::Program {
-            self.inner.prog_mut("tcp_v4_connect_exit").unwrap()
-        }
-    }
-
     #[derive(Default)]
     pub struct TraceconLinks {
         pub getaddrinfo_enter: Option<libbpf_rs::Link>,
@@ -436,28 +3230,29 @@ mod imp {
         pub tcp_v4_connect_enter: Option<libbpf_rs::Link>,
         pub tcp_v4_connect_exit: Option<libbpf_rs::Link>,
     }
-
-    pub struct TraceconSkel<'a> {
-        pub obj: libbpf_rs::Object,
-        struct_ops: tracecon_types::struct_ops,
-        skel_config: libbpf_rs::__internal_skel::ObjectSkeletonConfig<'a>,
+    pub struct TraceconSkel<'obj> {
+        obj: OwnedRef<'obj, libbpf_rs::Object>,
+        pub maps: TraceconMaps<'obj>,
+        pub progs: TraceconProgs<'obj>,
+        struct_ops: StructOps,
+        skel_config: libbpf_rs::__internal_skel::ObjectSkeletonConfig<'obj>,
         pub links: TraceconLinks,
     }
 
     unsafe impl Send for TraceconSkel<'_> {}
     unsafe impl Sync for TraceconSkel<'_> {}
 
-    impl Skel for TraceconSkel<'_> {
+    impl<'obj> Skel<'obj> for TraceconSkel<'obj> {
         fn object(&self) -> &libbpf_rs::Object {
-            &self.obj
+            self.obj.as_ref()
         }
 
         fn object_mut(&mut self) -> &mut libbpf_rs::Object {
-            &mut self.obj
+            self.obj.as_mut()
         }
-
         fn attach(&mut self) -> libbpf_rs::Result<()> {
-            let ret = unsafe { libbpf_sys::bpf_object__attach_skeleton(self.skel_config.get()) };
+            let skel_ptr = self.skel_config.as_libbpf_object().as_ptr();
+            let ret = unsafe { libbpf_sys::bpf_object__attach_skeleton(skel_ptr) };
             if ret != 0 {
                 return Err(libbpf_rs::Error::from_raw_os_error(-ret));
             }
@@ -477,68 +3272,14 @@ mod imp {
         }
     }
     impl TraceconSkel<'_> {
-        pub fn progs_mut(&mut self) -> TraceconProgsMut<'_> {
-            TraceconProgsMut {
-                inner: &mut self.obj,
-            }
-        }
-
-        pub fn progs(&self) -> TraceconProgs<'_> {
-            TraceconProgs { inner: &self.obj }
-        }
-
-        pub fn maps_mut(&mut self) -> TraceconMapsMut<'_> {
-            TraceconMapsMut {
-                inner: &mut self.obj,
-            }
-        }
-
-        pub fn maps(&self) -> TraceconMaps<'_> {
-            TraceconMaps { inner: &self.obj }
-        }
-
-        pub fn struct_ops_raw(&self) -> *const tracecon_types::struct_ops {
+        pub fn struct_ops_raw(&self) -> *const StructOps {
             &self.struct_ops
         }
 
-        pub fn struct_ops(&self) -> &tracecon_types::struct_ops {
+        pub fn struct_ops(&self) -> &StructOps {
             &self.struct_ops
-        }
-
-        pub fn rodata_raw(&self) -> *const tracecon_types::rodata {
-            self.skel_config
-                .map_mmap_ptr(4)
-                .unwrap()
-                .cast::<tracecon_types::rodata>()
-        }
-
-        pub fn rodata(&self) -> &tracecon_types::rodata {
-            unsafe { &*self.rodata_raw() }
-        }
-
-        pub fn bss_raw(&self) -> *const tracecon_types::bss {
-            self.skel_config
-                .map_mmap_ptr(5)
-                .unwrap()
-                .cast::<tracecon_types::bss>()
-        }
-
-        pub fn bss(&self) -> &tracecon_types::bss {
-            unsafe { &*self.bss_raw() }
-        }
-
-        pub fn bss_mut_raw(&mut self) -> *mut tracecon_types::bss {
-            self.skel_config
-                .map_mmap_ptr_mut(5)
-                .unwrap()
-                .cast::<tracecon_types::bss>()
-        }
-
-        pub fn bss_mut(&mut self) -> &mut tracecon_types::bss {
-            unsafe { &mut *self.bss_mut_raw() }
         }
     }
-
     const DATA: &[u8] = &[
         127, 69, 76, 70, 2, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 247, 0, 1, 0, 0, 0, 0, 0, 0, 0,
         0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 48, 154, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 64, 0, 0, 0, 0,

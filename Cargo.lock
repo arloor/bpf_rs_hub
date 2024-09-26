@@ -811,8 +811,8 @@ dependencies = [
 name = "trace_conn"
 version = "0.1.0"
 dependencies = [
- "libbpf-cargo",
- "libbpf-rs",
+ "libbpf-cargo 0.23.2",
+ "libbpf-rs 0.23.2",
  "libc",
  "object",
  "plain",

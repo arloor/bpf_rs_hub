@@ -4,6 +4,7 @@ use libbpf_rs::PerfBufferBuilder;
 use object::{Object, ObjectSymbol};
 use plain::Plain;
 use std::fs;
+use std::mem::MaybeUninit;
 use std::path::Path;
 use std::time::Duration;
 
@@ -17,7 +18,7 @@ use prog::*;
 
 type DynError = Box<dyn std::error::Error>;
 // export Event
-pub type Event = tracecon_types::event;
+pub type Event = crate::types::event;
 unsafe impl Plain for Event {}
 
 fn bump_memlock_rlimit() -> Result<(), DynError> {
@@ -51,7 +52,11 @@ fn get_symbol_address(so_path: &str, fn_name: &str) -> Result<usize, DynError> {
     Ok(symbol.address() as usize)
 }
 
-pub fn start<F>(glibc: &str, handler: F) -> Result<(), DynError>
+pub fn start<F>(
+    glibc: &str,
+    handler: F,
+    open_object: &'static mut MaybeUninit<libbpf_rs::OpenObject>,
+) -> Result<(), DynError>
 where
     F: FnMut(i32, &[u8]),
 {
@@ -60,7 +65,7 @@ where
     skel_builder.obj_builder.debug(false);
 
     bump_memlock_rlimit()?;
-    let open_skel = skel_builder.open()?;
+    let open_skel = skel_builder.open(open_object)?;
     // if let Some(pid) = opts.pid {
     //     open_skel.rodata().target_pid = pid;
     // }
@@ -68,26 +73,26 @@ where
     let address = get_symbol_address(glibc, "getaddrinfo")?;
 
     let _uprobe = skel
-        .progs_mut()
-        .getaddrinfo_enter()
+        .progs
+        .getaddrinfo_enter
         .attach_uprobe(false, -1, glibc, address)?;
 
     let _uretprobe = skel
-        .progs_mut()
-        .getaddrinfo_exit()
+        .progs
+        .getaddrinfo_exit
         .attach_uprobe(true, -1, glibc, address)?;
 
     let _kprobe = skel
-        .progs_mut()
-        .tcp_v4_connect_enter()
+        .progs
+        .tcp_v4_connect_enter
         .attach_kprobe(false, "tcp_v4_connect")?;
 
     let _kretprobe = skel
-        .progs_mut()
-        .tcp_v4_connect_exit()
+        .progs
+        .tcp_v4_connect_exit
         .attach_kprobe(true, "tcp_v4_connect")?;
 
-    let perf = PerfBufferBuilder::new(skel.maps_mut().events())
+    let perf = PerfBufferBuilder::new(&skel.maps.events)
         .sample_cb(handler)
         .build()?;
 

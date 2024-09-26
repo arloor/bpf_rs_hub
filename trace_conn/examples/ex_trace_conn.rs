@@ -1,4 +1,4 @@
-use std::net::Ipv4Addr;
+use std::{mem::MaybeUninit, net::Ipv4Addr};
 use trace_conn::Event;
 fn handle_event(_cpu: i32, data: &[u8]) {
     let mut event = Event::default();
@@ -11,10 +11,11 @@ fn handle_event(_cpu: i32, data: &[u8]) {
     }
 }
 
-fn main() -> Result<(), Box<dyn std::error::Error>>{
-    // find / -name libc.so.6 
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    // find / -name libc.so.6
     let glibc = "/usr/lib64/libc.so.6";
     // let glibc = "/lib64/libc.so.6";
     println!("start trace connection");
-    trace_conn::start(glibc,handle_event)
+    let mut open_object = Box::leak(Box::new(MaybeUninit::uninit()));
+    trace_conn::start(glibc, handle_event, open_object)
 }
