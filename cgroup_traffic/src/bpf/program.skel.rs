@@ -8,8 +8,8 @@ pub use self::imp::*;
 #[allow(non_snake_case)]
 #[allow(non_camel_case_types)]
 #[allow(clippy::absolute_paths)]
-#[allow(clippy::transmute_ptr_to_ref)]
 #[allow(clippy::upper_case_acronyms)]
+#[allow(clippy::zero_repeat_side_effects)]
 #[warn(single_use_lifetimes)]
 mod imp {
     #[allow(unused_imports)]
@@ -18,7 +18,8 @@ mod imp {
     use libbpf_rs::skel::OpenSkel;
     use libbpf_rs::skel::Skel;
     use libbpf_rs::skel::SkelBuilder;
-
+    use libbpf_rs::AsRawLibbpf as _;
+    use libbpf_rs::MapCore as _;
     fn build_skel_config(
     ) -> libbpf_rs::Result<libbpf_rs::__internal_skel::ObjectSkeletonConfig<'static>> {
         let mut builder = libbpf_rs::__internal_skel::ObjectSkeletonConfigBuilder::new(DATA);
@@ -27,8 +28,183 @@ mod imp {
             .map("process_traffic", false)
             .prog("count_egress_packets")
             .prog("count_ingress_packets");
-
         builder.build()
+    }
+    pub struct OpenProgramMaps<'obj> {
+        pub process_traffic: libbpf_rs::OpenMapMut<'obj>,
+        _phantom: std::marker::PhantomData<&'obj ()>,
+    }
+
+    impl<'obj> OpenProgramMaps<'obj> {
+        #[allow(unused_variables)]
+        unsafe fn new(
+            config: &libbpf_rs::__internal_skel::ObjectSkeletonConfig<'_>,
+            object: &mut libbpf_rs::OpenObject,
+        ) -> libbpf_rs::Result<Self> {
+            let mut process_traffic = None;
+            let object = unsafe {
+                std::mem::transmute::<&mut libbpf_rs::OpenObject, &'obj mut libbpf_rs::OpenObject>(
+                    object,
+                )
+            };
+            #[allow(clippy::never_loop)]
+            for map in object.maps_mut() {
+                let name = map.name().to_str().ok_or_else(|| {
+                    libbpf_rs::Error::from(std::io::Error::new(
+                        std::io::ErrorKind::InvalidData,
+                        "map has invalid name",
+                    ))
+                })?;
+                #[allow(clippy::match_single_binding)]
+                match name {
+                    "process_traffic" => process_traffic = Some(map),
+                    _ => panic!("encountered unexpected map: `{name}`"),
+                }
+            }
+
+            let slf = Self {
+                process_traffic: process_traffic.expect("map `process_traffic` not present"),
+                _phantom: std::marker::PhantomData,
+            };
+            Ok(slf)
+        }
+    }
+    pub struct ProgramMaps<'obj> {
+        pub process_traffic: libbpf_rs::MapMut<'obj>,
+        _phantom: std::marker::PhantomData<&'obj ()>,
+    }
+
+    impl<'obj> ProgramMaps<'obj> {
+        #[allow(unused_variables)]
+        unsafe fn new(
+            config: &libbpf_rs::__internal_skel::ObjectSkeletonConfig<'_>,
+            object: &mut libbpf_rs::Object,
+        ) -> libbpf_rs::Result<Self> {
+            let mut process_traffic = None;
+            let object = unsafe {
+                std::mem::transmute::<&mut libbpf_rs::Object, &'obj mut libbpf_rs::Object>(object)
+            };
+            #[allow(clippy::never_loop)]
+            for map in object.maps_mut() {
+                let name = map.name().to_str().ok_or_else(|| {
+                    libbpf_rs::Error::from(std::io::Error::new(
+                        std::io::ErrorKind::InvalidData,
+                        "map has invalid name",
+                    ))
+                })?;
+                #[allow(clippy::match_single_binding)]
+                match name {
+                    "process_traffic" => process_traffic = Some(map),
+                    _ => panic!("encountered unexpected map: `{name}`"),
+                }
+            }
+
+            let slf = Self {
+                process_traffic: process_traffic.expect("map `process_traffic` not present"),
+                _phantom: std::marker::PhantomData,
+            };
+            Ok(slf)
+        }
+    }
+    pub struct OpenProgramProgs<'obj> {
+        pub count_egress_packets: libbpf_rs::OpenProgramMut<'obj>,
+        pub count_ingress_packets: libbpf_rs::OpenProgramMut<'obj>,
+        _phantom: std::marker::PhantomData<&'obj ()>,
+    }
+
+    impl<'obj> OpenProgramProgs<'obj> {
+        unsafe fn new(object: &mut libbpf_rs::OpenObject) -> libbpf_rs::Result<Self> {
+            let mut count_egress_packets = None;
+            let mut count_ingress_packets = None;
+            let object = unsafe {
+                std::mem::transmute::<&mut libbpf_rs::OpenObject, &'obj mut libbpf_rs::OpenObject>(
+                    object,
+                )
+            };
+            for prog in object.progs_mut() {
+                let name = prog.name().to_str().ok_or_else(|| {
+                    libbpf_rs::Error::from(std::io::Error::new(
+                        std::io::ErrorKind::InvalidData,
+                        "prog has invalid name",
+                    ))
+                })?;
+                match name {
+                    "count_egress_packets" => count_egress_packets = Some(prog),
+                    "count_ingress_packets" => count_ingress_packets = Some(prog),
+                    _ => panic!("encountered unexpected prog: `{name}`"),
+                }
+            }
+
+            let slf = Self {
+                count_egress_packets: count_egress_packets
+                    .expect("prog `count_egress_packets` not present"),
+                count_ingress_packets: count_ingress_packets
+                    .expect("prog `count_ingress_packets` not present"),
+                _phantom: std::marker::PhantomData,
+            };
+            Ok(slf)
+        }
+    }
+    pub struct ProgramProgs<'obj> {
+        pub count_egress_packets: libbpf_rs::ProgramMut<'obj>,
+        pub count_ingress_packets: libbpf_rs::ProgramMut<'obj>,
+        _phantom: std::marker::PhantomData<&'obj ()>,
+    }
+
+    impl<'obj> ProgramProgs<'obj> {
+        #[allow(unused_variables)]
+        fn new(open_progs: OpenProgramProgs<'obj>) -> Self {
+            Self {
+                count_egress_packets: unsafe {
+                    libbpf_rs::ProgramMut::new_mut(
+                        open_progs.count_egress_packets.as_libbpf_object().as_mut(),
+                    )
+                },
+                count_ingress_packets: unsafe {
+                    libbpf_rs::ProgramMut::new_mut(
+                        open_progs.count_ingress_packets.as_libbpf_object().as_mut(),
+                    )
+                },
+                _phantom: std::marker::PhantomData,
+            }
+        }
+    }
+    struct OwnedRef<'obj, O> {
+        object: Option<&'obj mut std::mem::MaybeUninit<O>>,
+    }
+
+    impl<'obj, O> OwnedRef<'obj, O> {
+        /// # Safety
+        /// The object has to be initialized.
+        unsafe fn new(object: &'obj mut std::mem::MaybeUninit<O>) -> Self {
+            Self {
+                object: Some(object),
+            }
+        }
+
+        fn as_ref(&self) -> &O {
+            // SAFETY: As per the contract during construction, the
+            //         object has to be initialized.
+            unsafe { self.object.as_ref().unwrap().assume_init_ref() }
+        }
+
+        fn as_mut(&mut self) -> &mut O {
+            // SAFETY: As per the contract during construction, the
+            //         object has to be initialized.
+            unsafe { self.object.as_mut().unwrap().assume_init_mut() }
+        }
+
+        fn take(mut self) -> &'obj mut std::mem::MaybeUninit<O> {
+            self.object.take().unwrap()
+        }
+    }
+
+    impl<O> Drop for OwnedRef<'_, O> {
+        fn drop(&mut self) {
+            if let Some(object) = &mut self.object {
+                unsafe { object.assume_init_drop() }
+            }
+        }
     }
 
     #[derive(Default)]
@@ -36,30 +212,39 @@ mod imp {
         pub obj_builder: libbpf_rs::ObjectBuilder,
     }
 
-    impl<'a> SkelBuilder<'a> for ProgramSkelBuilder {
-        type Output = OpenProgramSkel<'a>;
-        fn open(self) -> libbpf_rs::Result<OpenProgramSkel<'a>> {
-            let opts = *self.obj_builder.opts();
-            self.open_opts(opts)
-        }
-
-        fn open_opts(
+    impl<'obj> ProgramSkelBuilder {
+        fn open_opts_impl(
             self,
-            open_opts: libbpf_sys::bpf_object_open_opts,
-        ) -> libbpf_rs::Result<OpenProgramSkel<'a>> {
-            let mut skel_config = build_skel_config()?;
+            open_opts: *const libbpf_sys::bpf_object_open_opts,
+            object: &'obj mut std::mem::MaybeUninit<libbpf_rs::OpenObject>,
+        ) -> libbpf_rs::Result<OpenProgramSkel<'obj>> {
+            let skel_config = build_skel_config()?;
+            let skel_ptr = skel_config.as_libbpf_object();
 
             let ret =
-                unsafe { libbpf_sys::bpf_object__open_skeleton(skel_config.get(), &open_opts) };
+                unsafe { libbpf_sys::bpf_object__open_skeleton(skel_ptr.as_ptr(), open_opts) };
             if ret != 0 {
                 return Err(libbpf_rs::Error::from_raw_os_error(-ret));
             }
 
-            let obj = unsafe { libbpf_rs::OpenObject::from_ptr(skel_config.object_ptr())? };
+            // SAFETY: `skel_ptr` points to a valid object after the
+            //         open call.
+            let obj_ptr = unsafe { *skel_ptr.as_ref().obj };
+            // SANITY: `bpf_object__open_skeleton` should have
+            //         allocated the object.
+            let obj_ptr = std::ptr::NonNull::new(obj_ptr).unwrap();
+            // SAFETY: `obj_ptr` points to an opened object after
+            //         skeleton open.
+            let obj = unsafe { libbpf_rs::OpenObject::from_ptr(obj_ptr) };
+            let _obj = object.write(obj);
+            // SAFETY: We just wrote initialized data to `object`.
+            let mut obj_ref = unsafe { OwnedRef::new(object) };
 
             #[allow(unused_mut)]
             let mut skel = OpenProgramSkel {
-                obj,
+                maps: unsafe { OpenProgramMaps::new(&skel_config, obj_ref.as_mut())? },
+                progs: unsafe { OpenProgramProgs::new(obj_ref.as_mut())? },
+                obj: obj_ref,
                 // SAFETY: Our `struct_ops` type contains only pointers,
                 //         which are allowed to be NULL.
                 // TODO: Generate and use a `Default` representation
@@ -70,6 +255,24 @@ mod imp {
 
             Ok(skel)
         }
+    }
+
+    impl<'obj> SkelBuilder<'obj> for ProgramSkelBuilder {
+        type Output = OpenProgramSkel<'obj>;
+        fn open(
+            self,
+            object: &'obj mut std::mem::MaybeUninit<libbpf_rs::OpenObject>,
+        ) -> libbpf_rs::Result<OpenProgramSkel<'obj>> {
+            self.open_opts_impl(std::ptr::null(), object)
+        }
+
+        fn open_opts(
+            self,
+            open_opts: libbpf_sys::bpf_object_open_opts,
+            object: &'obj mut std::mem::MaybeUninit<libbpf_rs::OpenObject>,
+        ) -> libbpf_rs::Result<OpenProgramSkel<'obj>> {
+            self.open_opts_impl(&open_opts, object)
+        }
 
         fn object_builder(&self) -> &libbpf_rs::ObjectBuilder {
             &self.obj_builder
@@ -79,83 +282,157 @@ mod imp {
         }
     }
 
-    pub struct OpenProgramMapsMut<'a> {
-        inner: &'a mut libbpf_rs::OpenObject,
-    }
+    #[derive(Debug, Clone)]
+    #[repr(C)]
+    pub struct StructOps {}
 
-    impl OpenProgramMapsMut<'_> {
-        pub fn process_traffic(&mut self) -> &mut libbpf_rs::OpenMap {
-            self.inner.map_mut("process_traffic").unwrap()
-        }
-    }
-
-    pub struct OpenProgramMaps<'a> {
-        inner: &'a libbpf_rs::OpenObject,
-    }
-
-    impl OpenProgramMaps<'_> {
-        pub fn process_traffic(&self) -> &libbpf_rs::OpenMap {
-            self.inner.map("process_traffic").unwrap()
-        }
-    }
-
-    pub struct OpenProgramProgs<'a> {
-        inner: &'a libbpf_rs::OpenObject,
-    }
-
-    impl OpenProgramProgs<'_> {
-        pub fn count_egress_packets(&self) -> &libbpf_rs::OpenProgram {
-            self.inner.prog("count_egress_packets").unwrap()
-        }
-
-        pub fn count_ingress_packets(&self) -> &libbpf_rs::OpenProgram {
-            self.inner.prog("count_ingress_packets").unwrap()
-        }
-    }
-
-    pub struct OpenProgramProgsMut<'a> {
-        inner: &'a mut libbpf_rs::OpenObject,
-    }
-
-    impl OpenProgramProgsMut<'_> {
-        pub fn count_egress_packets(&mut self) -> &mut libbpf_rs::OpenProgram {
-            self.inner.prog_mut("count_egress_packets").unwrap()
-        }
-
-        pub fn count_ingress_packets(&mut self) -> &mut libbpf_rs::OpenProgram {
-            self.inner.prog_mut("count_ingress_packets").unwrap()
-        }
-    }
-
-    pub mod program_types {
+    impl StructOps {}
+    pub mod types {
         #[allow(unused_imports)]
         use super::*;
-
-        #[derive(Debug, Clone)]
+        #[derive(Debug, Copy, Clone)]
         #[repr(C)]
-        pub struct struct_ops {}
-
-        impl struct_ops {}
+        pub struct __anon_1 {
+            pub r#type: *mut [i32; 6],
+            pub key: *mut u32,
+            pub value: *mut u64,
+            pub max_entries: *mut [i32; 2],
+        }
+        impl Default for __anon_1 {
+            fn default() -> Self {
+                Self {
+                    r#type: std::ptr::null_mut(),
+                    key: std::ptr::null_mut(),
+                    value: std::ptr::null_mut(),
+                    max_entries: std::ptr::null_mut(),
+                }
+            }
+        }
+        #[derive(Debug, Default, Copy, Clone)]
+        #[repr(C)]
+        pub struct __sk_buff {
+            pub len: u32,
+            pub pkt_type: u32,
+            pub mark: u32,
+            pub queue_mapping: u32,
+            pub protocol: u32,
+            pub vlan_present: u32,
+            pub vlan_tci: u32,
+            pub vlan_proto: u32,
+            pub priority: u32,
+            pub ingress_ifindex: u32,
+            pub ifindex: u32,
+            pub tc_index: u32,
+            pub cb: [u32; 5],
+            pub hash: u32,
+            pub tc_classid: u32,
+            pub data: u32,
+            pub data_end: u32,
+            pub napi_id: u32,
+            pub family: u32,
+            pub remote_ip4: u32,
+            pub local_ip4: u32,
+            pub remote_ip6: [u32; 4],
+            pub local_ip6: [u32; 4],
+            pub remote_port: u32,
+            pub local_port: u32,
+            pub data_meta: u32,
+            pub __anon_2: __anon_2,
+            pub tstamp: u64,
+            pub wire_len: u32,
+            pub gso_segs: u32,
+            pub __anon_3: __anon_3,
+            pub gso_size: u32,
+            pub tstamp_type: u8,
+            pub hwtstamp: u64,
+        }
+        #[derive(Copy, Clone)]
+        #[repr(C)]
+        pub union __anon_2 {
+            pub flow_keys: *mut std::ffi::c_void,
+        }
+        impl std::fmt::Debug for __anon_2 {
+            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                write!(f, "(???)")
+            }
+        }
+        impl Default for __anon_2 {
+            fn default() -> Self {
+                Self {
+                    flow_keys: std::ptr::null_mut(),
+                }
+            }
+        }
+        #[derive(Copy, Clone)]
+        #[repr(C)]
+        pub union __anon_3 {
+            pub sk: *mut std::ffi::c_void,
+        }
+        impl std::fmt::Debug for __anon_3 {
+            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                write!(f, "(???)")
+            }
+        }
+        impl Default for __anon_3 {
+            fn default() -> Self {
+                Self {
+                    sk: std::ptr::null_mut(),
+                }
+            }
+        }
+        #[derive(Debug, Copy, Clone)]
+        #[repr(C)]
+        pub struct license {
+            pub __license: [i8; 13],
+        }
+        #[derive(Debug, Copy, Clone)]
+        #[repr(C)]
+        pub struct maps {
+            pub process_traffic: __anon_1,
+        }
+    }
+    pub struct OpenProgramSkel<'obj> {
+        obj: OwnedRef<'obj, libbpf_rs::OpenObject>,
+        pub maps: OpenProgramMaps<'obj>,
+        pub progs: OpenProgramProgs<'obj>,
+        pub struct_ops: StructOps,
+        skel_config: libbpf_rs::__internal_skel::ObjectSkeletonConfig<'obj>,
     }
 
-    pub struct OpenProgramSkel<'a> {
-        pub obj: libbpf_rs::OpenObject,
-        pub struct_ops: program_types::struct_ops,
-        skel_config: libbpf_rs::__internal_skel::ObjectSkeletonConfig<'a>,
-    }
+    impl<'obj> OpenSkel<'obj> for OpenProgramSkel<'obj> {
+        type Output = ProgramSkel<'obj>;
+        fn load(self) -> libbpf_rs::Result<ProgramSkel<'obj>> {
+            let skel_ptr = self.skel_config.as_libbpf_object().as_ptr();
 
-    impl<'a> OpenSkel for OpenProgramSkel<'a> {
-        type Output = ProgramSkel<'a>;
-        fn load(mut self) -> libbpf_rs::Result<ProgramSkel<'a>> {
-            let ret = unsafe { libbpf_sys::bpf_object__load_skeleton(self.skel_config.get()) };
+            let ret = unsafe { libbpf_sys::bpf_object__load_skeleton(skel_ptr) };
             if ret != 0 {
                 return Err(libbpf_rs::Error::from_raw_os_error(-ret));
             }
 
-            let obj = unsafe { libbpf_rs::Object::from_ptr(self.obj.take_ptr())? };
+            let obj_ref = self.obj.take();
+            let open_obj = std::mem::replace(obj_ref, std::mem::MaybeUninit::uninit());
+            // SAFETY: `open_obj` is guaranteed to be properly
+            //         initialized as it came from an `OwnedRef`.
+            let obj_ptr = unsafe { open_obj.assume_init().take_ptr() };
+            // SAFETY: `obj_ptr` points to a loaded object after
+            //         skeleton load.
+            let obj = unsafe { libbpf_rs::Object::from_ptr(obj_ptr) };
+            // SAFETY: `OpenObject` and `Object` are guaranteed to
+            //         have the same memory layout.
+            let obj_ref = unsafe {
+                std::mem::transmute::<
+                    &'obj mut std::mem::MaybeUninit<libbpf_rs::OpenObject>,
+                    &'obj mut std::mem::MaybeUninit<libbpf_rs::Object>,
+                >(obj_ref)
+            };
+            let _obj = obj_ref.write(obj);
+            // SAFETY: We just wrote initialized data to `obj_ref`.
+            let mut obj_ref = unsafe { OwnedRef::new(obj_ref) };
 
             Ok(ProgramSkel {
-                obj,
+                maps: unsafe { ProgramMaps::new(&self.skel_config, obj_ref.as_mut())? },
+                progs: ProgramProgs::new(self.progs),
+                obj: obj_ref,
                 struct_ops: self.struct_ops,
                 skel_config: self.skel_config,
                 links: ProgramLinks::default(),
@@ -163,110 +440,41 @@ mod imp {
         }
 
         fn open_object(&self) -> &libbpf_rs::OpenObject {
-            &self.obj
+            self.obj.as_ref()
         }
 
         fn open_object_mut(&mut self) -> &mut libbpf_rs::OpenObject {
-            &mut self.obj
+            self.obj.as_mut()
         }
     }
-    impl OpenProgramSkel<'_> {
-        pub fn progs_mut(&mut self) -> OpenProgramProgsMut<'_> {
-            OpenProgramProgsMut {
-                inner: &mut self.obj,
-            }
-        }
-
-        pub fn progs(&self) -> OpenProgramProgs<'_> {
-            OpenProgramProgs { inner: &self.obj }
-        }
-
-        pub fn maps_mut(&mut self) -> OpenProgramMapsMut<'_> {
-            OpenProgramMapsMut {
-                inner: &mut self.obj,
-            }
-        }
-
-        pub fn maps(&self) -> OpenProgramMaps<'_> {
-            OpenProgramMaps { inner: &self.obj }
-        }
-    }
-
-    pub struct ProgramMapsMut<'a> {
-        inner: &'a mut libbpf_rs::Object,
-    }
-
-    impl ProgramMapsMut<'_> {
-        pub fn process_traffic(&mut self) -> &mut libbpf_rs::Map {
-            self.inner.map_mut("process_traffic").unwrap()
-        }
-    }
-
-    pub struct ProgramMaps<'a> {
-        inner: &'a libbpf_rs::Object,
-    }
-
-    impl ProgramMaps<'_> {
-        pub fn process_traffic(&self) -> &libbpf_rs::Map {
-            self.inner.map("process_traffic").unwrap()
-        }
-    }
-
-    pub struct ProgramProgs<'a> {
-        inner: &'a libbpf_rs::Object,
-    }
-
-    impl ProgramProgs<'_> {
-        pub fn count_egress_packets(&self) -> &libbpf_rs::Program {
-            self.inner.prog("count_egress_packets").unwrap()
-        }
-
-        pub fn count_ingress_packets(&self) -> &libbpf_rs::Program {
-            self.inner.prog("count_ingress_packets").unwrap()
-        }
-    }
-
-    pub struct ProgramProgsMut<'a> {
-        inner: &'a mut libbpf_rs::Object,
-    }
-
-    impl ProgramProgsMut<'_> {
-        pub fn count_egress_packets(&mut self) -> &mut libbpf_rs::Program {
-            self.inner.prog_mut("count_egress_packets").unwrap()
-        }
-
-        pub fn count_ingress_packets(&mut self) -> &mut libbpf_rs::Program {
-            self.inner.prog_mut("count_ingress_packets").unwrap()
-        }
-    }
-
     #[derive(Default)]
     pub struct ProgramLinks {
         pub count_egress_packets: Option<libbpf_rs::Link>,
         pub count_ingress_packets: Option<libbpf_rs::Link>,
     }
-
-    pub struct ProgramSkel<'a> {
-        pub obj: libbpf_rs::Object,
-        struct_ops: program_types::struct_ops,
-        skel_config: libbpf_rs::__internal_skel::ObjectSkeletonConfig<'a>,
+    pub struct ProgramSkel<'obj> {
+        obj: OwnedRef<'obj, libbpf_rs::Object>,
+        pub maps: ProgramMaps<'obj>,
+        pub progs: ProgramProgs<'obj>,
+        struct_ops: StructOps,
+        skel_config: libbpf_rs::__internal_skel::ObjectSkeletonConfig<'obj>,
         pub links: ProgramLinks,
     }
 
     unsafe impl Send for ProgramSkel<'_> {}
     unsafe impl Sync for ProgramSkel<'_> {}
 
-    impl Skel for ProgramSkel<'_> {
+    impl<'obj> Skel<'obj> for ProgramSkel<'obj> {
         fn object(&self) -> &libbpf_rs::Object {
-            &self.obj
+            self.obj.as_ref()
         }
 
         fn object_mut(&mut self) -> &mut libbpf_rs::Object {
-            &mut self.obj
+            self.obj.as_mut()
         }
-
         fn attach(&mut self) -> libbpf_rs::Result<()> {
-            let ret = unsafe { libbpf_sys::bpf_object__attach_skeleton(self.skel_config.get()) };
+            let skel_ptr = self.skel_config.as_libbpf_object().as_ptr();
+            let ret = unsafe { libbpf_sys::bpf_object__attach_skeleton(skel_ptr) };
             if ret != 0 {
                 return Err(libbpf_rs::Error::from_raw_os_error(-ret));
             }
@@ -282,35 +490,14 @@ mod imp {
         }
     }
     impl ProgramSkel<'_> {
-        pub fn progs_mut(&mut self) -> ProgramProgsMut<'_> {
-            ProgramProgsMut {
-                inner: &mut self.obj,
-            }
-        }
-
-        pub fn progs(&self) -> ProgramProgs<'_> {
-            ProgramProgs { inner: &self.obj }
-        }
-
-        pub fn maps_mut(&mut self) -> ProgramMapsMut<'_> {
-            ProgramMapsMut {
-                inner: &mut self.obj,
-            }
-        }
-
-        pub fn maps(&self) -> ProgramMaps<'_> {
-            ProgramMaps { inner: &self.obj }
-        }
-
-        pub fn struct_ops_raw(&self) -> *const program_types::struct_ops {
+        pub fn struct_ops_raw(&self) -> *const StructOps {
             &self.struct_ops
         }
 
-        pub fn struct_ops(&self) -> &program_types::struct_ops {
+        pub fn struct_ops(&self) -> &StructOps {
             &self.struct_ops
         }
     }
-
     const DATA: &[u8] = &[
         127, 69, 76, 70, 2, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 247, 0, 1, 0, 0, 0, 0, 0, 0, 0,
         0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 160, 12, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 64, 0, 0, 0, 0,

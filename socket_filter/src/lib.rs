@@ -12,9 +12,9 @@ use std::{ffi::CString, os::fd::AsFd};
 #[path = "bpf/program.skel.rs"]
 mod prog;
 use libbpf_rs::skel::{OpenSkel, SkelBuilder};
-use libbpf_rs::MapFlags;
+use libbpf_rs::{MapCore, MapFlags};
 use pnet::datalink;
-use std::mem::size_of_val;
+use std::mem::{size_of_val, MaybeUninit};
 
 pub struct TransmitCounter {
     skel: ProgramSkel<'static>,
@@ -29,9 +29,12 @@ impl TransmitCounter {
         get(&self.skel, INGRESS)
     }
 
-    pub fn new(ignored_interfaces: &[&'static str]) -> Self {
+    pub fn new(
+        ignored_interfaces: &[&'static str],
+        open_object: &'static mut MaybeUninit<libbpf_rs::OpenObject>,
+    ) -> Self {
         bump_memlock_rlimit().expect("Failed to increase rlimit");
-        let skel = open_and_load_socket_filter_prog();
+        let skel = open_and_load_socket_filter_prog(open_object);
         let all_interfaces = datalink::interfaces();
 
         // 遍历接口列表
@@ -49,16 +52,14 @@ impl TransmitCounter {
     }
 }
 
-impl Default for TransmitCounter {
-    fn default() -> Self {
-        TransmitCounter::new(&["lo", "podman", "veth", "flannel", "cni0", "utun"])
-    }
-}
-
-pub fn open_and_load_socket_filter_prog() -> ProgramSkel<'static> {
+pub fn open_and_load_socket_filter_prog(
+    open_object: &'static mut MaybeUninit<libbpf_rs::OpenObject>,
+) -> ProgramSkel<'static> {
     let builder = ProgramSkelBuilder::default();
 
-    let open_skel = builder.open().expect("Failed to open BPF program");
+    let open_skel = builder
+        .open(open_object)
+        .expect("Failed to open BPF program");
     open_skel.load().expect("Failed to load BPF program")
 }
 type DynError = Box<dyn std::error::Error>;
@@ -79,7 +80,7 @@ pub fn set_socket_opt_bpf(skel: &ProgramSkel<'static>, name: &str) {
     unsafe {
         let sock = open_raw_sock(name).expect("Failed to open raw socket");
 
-        let prog_fd = skel.progs().bpf_program().as_fd().as_raw_fd();
+        let prog_fd = skel.progs.bpf_program.as_fd().as_raw_fd();
         let value = &prog_fd as *const i32;
         let option_len = size_of_val(&prog_fd) as libc::socklen_t;
 
@@ -98,8 +99,8 @@ struct Direction(u32);
 const EGRESS: Direction = Direction(0);
 const INGRESS: Direction = Direction(1);
 fn get(skel: &ProgramSkel<'static>, direction: Direction) -> u64 {
-    let maps = skel.maps();
-    let map = maps.map();
+    let maps = &skel.maps;
+    let map = &maps.traffic;
     let key = unsafe { plain::as_bytes(&direction.0) };
     let mut count: u64 = 0;
     if let Ok(Some(buf)) = map.lookup_percpu(key, MapFlags::ANY) {

@@ -1,9 +1,17 @@
-use std::{thread::sleep, time::Duration};
+use std::{mem::MaybeUninit, thread::sleep, time::Duration};
 
 fn main() {
-    let socket_filter = socket_filter::TransmitCounter::default();
+    let open_object = Box::leak(Box::new(MaybeUninit::uninit()));
+    let socket_filter = socket_filter::TransmitCounter::new(
+        &["lo", "podman", "veth", "flannel", "cni0", "utun"],
+        open_object,
+    );
     loop {
-        println!("current bytes: {} {}", socket_filter.get_egress(),socket_filter.get_ingress());
+        println!(
+            "current bytes: {} {}",
+            socket_filter.get_egress(),
+            socket_filter.get_ingress()
+        );
         sleep(Duration::from_secs(1));
     }
 }
