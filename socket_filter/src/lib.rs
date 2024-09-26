@@ -101,11 +101,15 @@ fn get(skel: &ProgramSkel<'static>, direction: Direction) -> u64 {
     let maps = skel.maps();
     let map = maps.map();
     let key = unsafe { plain::as_bytes(&direction.0) };
-    let mut value: u64 = 0;
-    if let Ok(Some(buf)) = map.lookup(key, MapFlags::ANY) {
-        plain::copy_from_bytes(&mut value, &buf).expect("Invalid buffer");
+    let mut count: u64 = 0;
+    if let Ok(Some(buf)) = map.lookup_percpu(key, MapFlags::ANY) {
+        for ele in buf.iter() {
+            let mut value: u64 = 0;
+            plain::copy_from_bytes(&mut value, ele).expect("Invalid buffer");
+            count += value;
+        }
     }
-    value
+    count
 }
 
 pub fn open_raw_sock(name: &str) -> Result<RawFd, String> {

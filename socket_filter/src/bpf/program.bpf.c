@@ -13,7 +13,7 @@
 
 struct
 {
-    __uint(type, BPF_MAP_TYPE_ARRAY);
+    __uint(type, BPF_MAP_TYPE_PERCPU_ARRAY);
     __uint(max_entries, 2);
     __type(key, u32);
     __type(value, u64);
@@ -26,7 +26,7 @@ SEC("socket")
 int bpf_program(struct __sk_buff *skb)
 {
 
-    __u32 key = 0; // egress = 0 
+    __u32 key = 0; // egress = 0
     if (skb->pkt_type != PACKET_OUTGOING)
     {
         key = 1; // ingress = 1
