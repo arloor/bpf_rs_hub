@@ -17,7 +17,7 @@ struct
     __uint(max_entries, 2);
     __type(key, u32);
     __type(value, u64);
-} map SEC(".maps");
+} traffic SEC(".maps");
 
 /*
  * Track size of outgoing ICMP and UDP packets
@@ -32,7 +32,7 @@ int bpf_program(struct __sk_buff *skb)
         key = 1; // ingress = 1
     }
 
-    long *value = bpf_map_lookup_elem(&map, &key);
+    long *value = bpf_map_lookup_elem(&traffic, &key);
     if (value)
     {
         __sync_fetch_and_add(value, skb->len);

@@ -1,7 +1,8 @@
 #![deny(warnings)]
 use libbpf_rs::skel::{OpenSkel, SkelBuilder};
 // use object::{Object, ObjectSymbol};
-use libbpf_rs::{Link, MapFlags};
+use libbpf_rs::{Link, MapCore, MapFlags};
+use std::mem::MaybeUninit;
 use std::os::fd::AsRawFd;
 
 mod prog {
@@ -15,15 +16,14 @@ use prog::*;
 type DynError = Box<dyn std::error::Error>;
 
 pub struct CgroupTransmitCounter {
-    skel: ProgramSkel<'static>,
+    maps: ProgramMaps<'static>,
 }
 
 struct Direction(u32);
 const EGRESS: Direction = Direction(0);
 const INGRESS: Direction = Direction(1);
-fn get(skel: &ProgramSkel<'static>, direction: Direction) -> u64 {
-    let maps = skel.maps();
-    let map = maps.process_traffic();
+fn get(maps: &ProgramMaps<'static>, direction: Direction) -> u64 {
+    let map = &maps.process_traffic;
     let key = unsafe { plain::as_bytes(&direction.0) };
     let mut count: u64 = 0;
     if let Ok(Some(buf)) = map.lookup_percpu(key, MapFlags::ANY) {
@@ -38,11 +38,11 @@ fn get(skel: &ProgramSkel<'static>, direction: Direction) -> u64 {
 
 impl CgroupTransmitCounter {
     pub fn get_egress(&self) -> u64 {
-        get(&self.skel, EGRESS)
+        get(&self.maps, EGRESS)
     }
 
     pub fn get_ingress(&self) -> u64 {
-        get(&self.skel, INGRESS)
+        get(&self.maps, INGRESS)
     }
 }
 
@@ -109,27 +109,32 @@ fn get_self_cgroup() -> io::Result<(String, Vec<i32>)> {
     ))
 }
 
-pub fn attach_self_cgroup() -> Result<(CgroupTransmitCounter, Vec<Link>), DynError> {
+pub fn attach_self_cgroup(
+    open_object: &'static mut MaybeUninit<libbpf_rs::OpenObject>,
+) -> Result<(CgroupTransmitCounter, Vec<Link>), DynError> {
     let cgroup = get_self_cgroup()?;
     log::info!(
         "attach to self's cgroup: [ {} ], pids: {:?}",
         cgroup.0,
         cgroup.1
     );
-    attach_cgroup(&cgroup.0)
+    attach_cgroup(&cgroup.0, open_object)
 }
 
-pub fn attach_cgroup(path: &str) -> Result<(CgroupTransmitCounter, Vec<Link>), DynError> {
+pub fn attach_cgroup(
+    path: &str,
+    open_object: &'static mut MaybeUninit<libbpf_rs::OpenObject>,
+) -> Result<(CgroupTransmitCounter, Vec<Link>), DynError> {
     let mut skel_builder = ProgramSkelBuilder::default();
 
     skel_builder.obj_builder.debug(false);
 
     bump_memlock_rlimit()?;
-    let open_skel = skel_builder.open()?;
+    let open_skel = skel_builder.open(open_object)?;
     // if let Some(pid) = opts.pid {
     //     open_skel.rodata().target_pid = pid;
     // }
-    let mut skel = open_skel.load()?;
+    let skel = open_skel.load()?;
 
     let f = std::fs::OpenOptions::new()
         //.custom_flags(libc::O_DIRECTORY)
@@ -138,11 +143,11 @@ pub fn attach_cgroup(path: &str) -> Result<(CgroupTransmitCounter, Vec<Link>), D
         .write(false)
         .open(path)?;
     let cgroup_fd = f.as_raw_fd();
-    let mut progs: ProgramProgsMut<'_> = skel.progs_mut();
-    let link_egress = progs.count_egress_packets().attach_cgroup(cgroup_fd)?;
-    let link_ingress = progs.count_ingress_packets().attach_cgroup(cgroup_fd)?;
+    let mut progs = skel.progs;
+    let link_egress = progs.count_egress_packets.attach_cgroup(cgroup_fd)?;
+    let link_ingress = progs.count_ingress_packets.attach_cgroup(cgroup_fd)?;
     Ok((
-        CgroupTransmitCounter { skel },
+        CgroupTransmitCounter { maps: skel.maps },
         vec![link_egress, link_ingress],
     ))
 }

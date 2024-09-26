@@ -16,6 +16,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let glibc = "/usr/lib64/libc.so.6";
     // let glibc = "/lib64/libc.so.6";
     println!("start trace connection");
-    let mut open_object = Box::leak(Box::new(MaybeUninit::uninit()));
+    let open_object = Box::leak(Box::new(MaybeUninit::uninit()));
     trace_conn::start(glibc, handle_event, open_object)
 }
