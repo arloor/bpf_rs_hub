@@ -19,7 +19,7 @@ plain.workspace = true                                     # A small Rust librar
 pnet = "0.35"                                              # Rust library for low level networking using the pcap library
 log.workspace = true
 [dev-dependencies]
-env_logger = "0.11.5"
+env_logger = "0.11"
 
 [build-dependencies]
 libbpf-cargo = "0.24"                           # Cargo plugin to build bpf programs
