@@ -1,11 +1,7 @@
 #![deny(warnings)]
-use std::{thread::sleep, time::Duration};
-
 use log::info;
 
-type DynError = Box<dyn std::error::Error>;
-
-pub fn main() -> Result<(), DynError> {
+pub fn main() -> Result<(), Box<dyn std::error::Error>> {
     let _ = env_logger::builder()
         .filter_level(log::LevelFilter::Info)
         .try_init();
@@ -16,6 +12,6 @@ pub fn main() -> Result<(), DynError> {
             cgroup_transmit_counter.get_egress(),
             cgroup_transmit_counter.get_ingress()
         );
-        sleep(Duration::from_secs(1));
+        std::thread::sleep(std::time::Duration::from_secs(1));
     }
 }

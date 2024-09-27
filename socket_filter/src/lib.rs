@@ -6,14 +6,16 @@
 //! ## Example
 //!
 //! ```rust
-//! let socket_filter = socket_filter::TransmitCounter::default();
-//! loop {
-//!     println!(
-//!         "current bytes: {} {}",
-//!         socket_filter.get_egress(),
-//!         socket_filter.get_ingress()
-//!     );
-//!     std::thread::sleep(std::time::Duration::from_secs(1));
+//! pub fn main() -> Result<(), Box<dyn std::error::Error>> {
+//!     let socket_filter = socket_filter::TransmitCounter::new(socket_filter::IGNORED_IFACE)?;
+//!     loop {
+//!         println!(
+//!             "current bytes: {} {}",
+//!             socket_filter.get_egress(),
+//!             socket_filter.get_ingress()
+//!         );
+//!         std::thread::sleep(std::time::Duration::from_secs(1));
+//!     }
 //! }
 //! ```
 //!
@@ -21,7 +23,7 @@ use libc::{
     bind, close, if_nametoindex, sockaddr_ll, socket, AF_PACKET, PF_PACKET, SOCK_CLOEXEC,
     SOCK_NONBLOCK, SOCK_RAW,
 };
-use log::{info, warn};
+use log::info;
 use prog::*;
 use std::os::fd::AsRawFd;
 use std::os::unix::io::RawFd;
@@ -33,6 +35,8 @@ use libbpf_rs::skel::{OpenSkel, SkelBuilder};
 use libbpf_rs::{MapCore, MapFlags};
 use pnet::datalink;
 use std::mem::{size_of_val, MaybeUninit};
+
+pub const IGNORED_IFACE: &[&str; 6] = &["lo", "podman", "veth", "flannel", "cni0", "utun"];
 
 pub struct TransmitCounter {
     skel: ProgramSkel<'static>,
@@ -51,10 +55,10 @@ impl TransmitCounter {
 
     /// Create a new `TransmitCounter` instance.
     /// `ignored_interfaces` is a list of interface names to ignore.
-    pub fn new(ignored_interfaces: &[&'static str]) -> Self {
-        bump_memlock_rlimit();
+    pub fn new(ignored_interfaces: &[&'static str]) -> Result<Self, DynError> {
+        bump_memlock_rlimit()?;
         let open_object = Box::leak(Box::new(MaybeUninit::uninit())); // make the ebpf prog lives as long as the process.
-        let skel = open_and_load_socket_filter_prog(open_object);
+        let skel = open_and_load_socket_filter_prog(open_object)?;
         let all_interfaces = datalink::interfaces();
 
         // 遍历接口列表
@@ -66,42 +70,35 @@ impl TransmitCounter {
                 continue;
             }
             info!("load bpf socket filter for Interface: {}", iface.name);
-            set_socket_opt_bpf(&skel, iface.name.as_str());
+            set_socket_opt_bpf(&skel, iface.name.as_str())?;
         }
-        TransmitCounter { skel }
-    }
-}
-
-impl Default for TransmitCounter {
-    fn default() -> Self {
-        Self::new(&["lo", "podman", "veth", "flannel", "cni0", "utun"])
+        Ok(TransmitCounter { skel })
     }
 }
 
 fn open_and_load_socket_filter_prog(
     open_object: &'static mut MaybeUninit<libbpf_rs::OpenObject>,
-) -> ProgramSkel<'static> {
+) -> Result<ProgramSkel<'static>, DynError> {
     let builder = ProgramSkelBuilder::default();
-
-    let open_skel = builder
-        .open(open_object)
-        .expect("Failed to open BPF program");
-    open_skel.load().expect("Failed to load BPF program")
+    let open_skel = builder.open(open_object)?;
+    Ok(open_skel.load()?)
 }
-fn bump_memlock_rlimit() {
+type DynError = Box<dyn std::error::Error>;
+fn bump_memlock_rlimit() -> Result<(), DynError> {
     let rlimit = libc::rlimit {
         rlim_cur: 128 << 20,
         rlim_max: 128 << 20,
     };
 
     if unsafe { libc::setrlimit(libc::RLIMIT_MEMLOCK, &rlimit) } != 0 {
-        warn!("Failed to increase rlimit");
+        return Err("Failed to increase rlimit".into());
     }
+    Ok(())
 }
 
-fn set_socket_opt_bpf(skel: &ProgramSkel<'static>, name: &str) {
+fn set_socket_opt_bpf(skel: &ProgramSkel<'static>, name: &str) -> Result<(), DynError> {
     unsafe {
-        let sock = open_raw_sock(name).expect("Failed to open raw socket");
+        let sock = open_raw_sock(name)?;
 
         let prog_fd = skel.progs.bpf_program.as_fd().as_raw_fd();
         let value = &prog_fd as *const i32;
@@ -114,8 +111,11 @@ fn set_socket_opt_bpf(skel: &ProgramSkel<'static>, name: &str) {
             value as *const libc::c_void,
             option_len,
         );
-        assert_eq!(sockopt, 0, "Failed to set socket option");
+        if sockopt != 0 {
+            return Err("Failed to set socket option".into());
+        }
     };
+    Ok(())
 }
 
 struct Direction(u32);

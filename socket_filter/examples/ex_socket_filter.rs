@@ -1,13 +1,11 @@
-use std::{thread::sleep, time::Duration};
-
-fn main() {
-    let socket_filter = socket_filter::TransmitCounter::default();
+pub fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let socket_filter = socket_filter::TransmitCounter::new(socket_filter::IGNORED_IFACE)?;
     loop {
         println!(
             "current bytes: {} {}",
             socket_filter.get_egress(),
             socket_filter.get_ingress()
         );
-        sleep(Duration::from_secs(1));
+        std::thread::sleep(std::time::Duration::from_secs(1));
     }
 }

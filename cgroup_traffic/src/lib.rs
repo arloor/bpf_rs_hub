@@ -8,15 +8,16 @@
 //! ## Example
 //!
 //! ```rust
-//! // monitor self's cgroup traffic
-//! let cgroup_transmit_counter = cgroup_traffic::init_cgroup_skb_monitor(cgroup_traffic::SELF)?;
-//! loop {
-//!     println!(
-//!         "current bytes: {} {}",
-//!         cgroup_transmit_counter.get_egress(),
-//!         cgroup_transmit_counter.get_ingress()
-//!     );
-//!     std::thread::sleep(std::time::Duration::from_secs(1));
+//! pub fn main() -> Result<(), Box<dyn std::error::Error>> {
+//!     let cgroup_transmit_counter = cgroup_traffic::init_cgroup_skb_monitor(cgroup_traffic::SELF)?;
+//!     loop {
+//!         println!(
+//!             "current bytes: {} {}",
+//!             cgroup_transmit_counter.get_egress(),
+//!             cgroup_transmit_counter.get_ingress()
+//!         );
+//!         std::thread::sleep(std::time::Duration::from_secs(1));
+//!     }
 //! }
 //! ```
 //!
@@ -25,7 +26,6 @@
 use libbpf_rs::skel::{OpenSkel, SkelBuilder};
 // use object::{Object, ObjectSymbol};
 use libbpf_rs::{MapCore, MapFlags};
-use log::warn;
 use std::error::Error;
 use std::mem::MaybeUninit;
 
@@ -101,15 +101,16 @@ impl CgroupTransmitCounter {
     }
 }
 
-fn bump_memlock_rlimit() {
+fn bump_memlock_rlimit() -> Result<(), DynError> {
     let rlimit = libc::rlimit {
         rlim_cur: 128 << 20,
         rlim_max: 128 << 20,
     };
 
     if unsafe { libc::setrlimit(libc::RLIMIT_MEMLOCK, &rlimit) } != 0 {
-        warn!("Failed to increase rlimit");
+        return Err("Failed to increase rlimit".into());
     }
+    Ok(())
 }
 
 use std::fs::File;
@@ -210,7 +211,7 @@ pub(crate) fn load_ebpf_skel(
 
     skel_builder.obj_builder.debug(false);
 
-    bump_memlock_rlimit();
+    bump_memlock_rlimit()?;
     let open_skel = skel_builder.open(open_object)?;
     // if let Some(pid) = opts.pid {
     //     open_skel.rodata().target_pid = pid;
