@@ -5,24 +5,7 @@
 //!
 //! It use ebpf program `BPF_PROG_TYPE_CGROUP_SKB` to monitor the network traffic. Now it's only tested for Cgroup V2. It doesn't support Cgroup V1, because it cannot parse the path of cgroup V1.
 //!
-//! ## Examples
-//!
-//! ```rust
-//! pub fn main() -> Result<(), Box<dyn std::error::Error>> {
-//!     let cgroup_transmit_counter = cgroup_traffic::init_cgroup_skb_monitor(cgroup_traffic::SELF)?;
-//!     loop {
-//!         println!(
-//!             "current bytes: {} {}",
-//!             cgroup_transmit_counter.get_egress(),
-//!             cgroup_transmit_counter.get_ingress()
-//!         );
-//!         std::thread::sleep(std::time::Duration::from_secs(1));
-//!     }
-//! }
-//! ```
-//!  
-//! Refer to `cgroup_traffic::init_cgroup_skb_monitor` if you want to attach to a specific cgroup path.
-//!
+//! Refer to `cgroup_traffic::init_cgroup_skb_monitor` for more information.
 
 use libbpf_rs::skel::{OpenSkel, SkelBuilder};
 // use object::{Object, ObjectSymbol};
@@ -41,7 +24,7 @@ use prog::*;
 type DynError = Box<dyn std::error::Error>;
 
 /// The CgroupTransmitCounter is a struct to monitor the network traffic of a cgroup.
-/// 
+///
 /// It contains two methods to get the egress and ingress bytes of the cgroup.
 pub struct CgroupTransmitCounter {
     pub(crate) skel: ProgramSkel<'static>,
@@ -67,7 +50,7 @@ fn get(skel: &ProgramSkel<'static>, direction: Direction) -> u64 {
 
 impl CgroupTransmitCounter {
     /// Create a new CgroupTransmitCounter.
-    /// 
+    ///
     /// It will load the ebpf program and return a CgroupTransmitCounter.
     pub fn new() -> Result<CgroupTransmitCounter, Box<dyn Error>> {
         let open_object = Box::leak(Box::new(std::mem::MaybeUninit::uninit()));
@@ -76,7 +59,7 @@ impl CgroupTransmitCounter {
     }
 
     /// Attach the ebpf program to a cgroup.
-    /// 
+    ///
     /// The cgroup_path should be a full path to the cgroup directory.
     pub fn attach_cgroup(&mut self, cgroup_path: String) -> Result<(), Box<dyn Error>> {
         let file = std::fs::OpenOptions::new()
