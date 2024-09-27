@@ -14,10 +14,7 @@ use std::error::Error;
 use std::mem::MaybeUninit;
 
 mod prog {
-    include!(concat!(
-        env!("CARGO_MANIFEST_DIR"),
-        "/src/bpf/program.skel.rs"
-    ));
+    include!(concat!(env!("OUT_DIR"), "/program.skel.rs"));
 }
 use prog::*;
 
