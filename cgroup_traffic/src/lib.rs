@@ -26,8 +26,9 @@
 use libbpf_rs::skel::{OpenSkel, SkelBuilder};
 // use object::{Object, ObjectSymbol};
 use libbpf_rs::{MapCore, MapFlags};
-use std::error::Error;
+use std::collections::HashSet;
 use std::mem::MaybeUninit;
+use std::process::Command;
 
 mod prog {
     include!(concat!(env!("OUT_DIR"), "/program.skel.rs"));
@@ -65,7 +66,7 @@ impl CgroupTransmitCounter {
     /// Create a new CgroupTransmitCounter.
     ///
     /// It will load the ebpf program and return a CgroupTransmitCounter.
-    pub fn new() -> Result<CgroupTransmitCounter, Box<dyn Error>> {
+    pub fn new() -> Result<CgroupTransmitCounter, DynError> {
         let open_object = Box::leak(Box::new(std::mem::MaybeUninit::uninit()));
         let cgroup_transmit_counter = load_ebpf_skel(open_object)?;
         Ok(cgroup_transmit_counter)
@@ -74,7 +75,7 @@ impl CgroupTransmitCounter {
     /// Attach the ebpf program to a cgroup.
     ///
     /// The cgroup_path should be a full path to the cgroup directory.
-    pub fn attach_cgroup(&mut self, cgroup_path: String) -> Result<(), Box<dyn Error>> {
+    pub fn attach_cgroup(&mut self, cgroup_path: String) -> Result<(), DynError> {
         let file = std::fs::OpenOptions::new()
             .read(true)
             .write(false)
@@ -154,8 +155,8 @@ const CGROUP_PROCS: &str = "cgroup.procs";
 pub fn init_cgroup_skb_monitor(
     pid: &str,
 ) -> Result<CgroupTransmitCounter, Box<dyn std::error::Error>> {
-    let mut cgroup_transmit_counter = CgroupTransmitCounter::new()?;
     let cgroup = get_pid_cgroup(pid)?;
+    let mut cgroup_transmit_counter = CgroupTransmitCounter::new()?;
     log::info!(
         "attach to {pid}'s cgroup: [ {} ], contain these pids: {:?}",
         cgroup.0,
@@ -218,4 +219,76 @@ pub(crate) fn load_ebpf_skel(
     // }
     let skel: ProgramSkel<'_> = open_skel.load()?;
     Ok(CgroupTransmitCounter { skel })
+}
+
+fn get_pids_of(process_name: &str) -> Result<Vec<(u32, String)>, DynError> {
+    let output = Command::new("sh")
+        .arg("-c")
+        .arg(format!(
+            "ps -eo pid,comm|grep -E \"{process_name}\"|grep -v grep|awk '{{print $1\",,\"$2}}'"
+        ))
+        .output()?;
+    Ok(String::from_utf8(output.stdout)?
+        .lines()
+        .filter_map(|line| {
+            let parts: Vec<_> = line.split(",,").collect();
+            if parts.len() == 2 {
+                let pid = parts[0].parse::<u32>().ok()?;
+                let name = parts[1].to_string();
+                return Some((pid, name));
+            }
+            None
+        })
+        .collect::<Vec<_>>())
+}
+
+fn get_cgroups_of(process_name: &str) -> Result<Vec<String>, DynError> {
+    let a: HashSet<_> = get_pids_of(process_name)?
+        .iter()
+        .filter_map(
+            |(pid, process_name)| match get_pid_cgroup(&pid.to_string()) {
+                Ok((cgroup_path, _)) => {
+                    log::info!(
+                        "process:{:^10}, pid:{:^10}, cgroup: {cgroup_path}",
+                        process_name,
+                        pid
+                    );
+                    Some(cgroup_path)
+                }
+                Err(e) => {
+                    log::error!("Failed to find cgroup path for pid: {}", e);
+                    None
+                }
+            },
+        )
+        .collect();
+    Ok(a.into_iter().collect())
+}
+
+/// Initialize the eBPF program for monitoring the cgroup traffic of processes with the process name.
+/// It will attach to a group of cgroups that the processes belongs to.
+/// process_name can be `grep -E` pattern, like "sshd|nginx".
+pub fn init_cgroup_skb_for_process_name(
+    process_name: &str,
+) -> Result<CgroupTransmitCounter, Box<dyn std::error::Error>> {
+    let cgroups = get_cgroups_of(process_name)?;
+    if cgroups.is_empty() {
+        return Err("No cgroup found".into());
+    }
+    let mut cgroup_transmit_counter = CgroupTransmitCounter::new()?;
+    for cgroup in cgroups.iter() {
+        log::info!("attach to cgroup: [ {} ]", cgroup);
+        let file = std::fs::OpenOptions::new()
+            .read(true)
+            .write(false)
+            .open(cgroup)?; // a standalone line, to make `file` leave longer.
+        use std::os::fd::AsRawFd;
+        let cgroup_fd = file.as_raw_fd();
+        let progs = &mut cgroup_transmit_counter.skel.progs;
+        let link_egress = progs.count_egress_packets.attach_cgroup(cgroup_fd)?;
+        Box::leak(Box::new(link_egress)); // leak it to make it 'static, so our bpf prog lives 'static
+        let link_ingress = progs.count_ingress_packets.attach_cgroup(cgroup_fd)?;
+        Box::leak(Box::new(link_ingress)); // leak it to make it 'static, so our bpf prog lives 'static
+    }
+    Ok(cgroup_transmit_counter)
 }
