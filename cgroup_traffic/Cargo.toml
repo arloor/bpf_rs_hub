@@ -27,11 +27,9 @@ log.workspace = true
 env_logger = "0.11"
 
 [build-dependencies]
-libbpf-cargo = "0.24"                           # Cargo plugin to build bpf programs
-vmlinux = { workspace = true, optional = true }
+libbpf-cargo = "0.24" # Cargo plugin to build bpf programs
 
 [features]
 default = ["libbpf-rs/default"]
 vendored = ["libbpf-rs/vendored"]
 static = ["libbpf-rs/static"]
-remote-vmlinux = ["vmlinux"]
