@@ -19,3 +19,7 @@ pub fn main() -> Result<(), Box<dyn std::error::Error>> {
 ```
  
 Refer to `cgroup_traffic::init_cgroup_skb_monitor` if you want to attach to a specific cgroup path.
+
+## Limitations
+
+- Support for Cgroup V1 is NOT tested.
