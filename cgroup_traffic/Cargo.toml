@@ -1,6 +1,6 @@
 [package]
 name = "cgroup_traffic"
-version = "0.1.0"
+version = "0.1.1"
 authors = ["arloor <admin@arloor.com>"]
 edition = "2021"
 license = "LGPL-2.1-only OR BSD-2-Clause"
@@ -9,6 +9,7 @@ repository = "https://github.com/arloor/bpf_rs_hub"
 homepage = "https://www.arloor.com"
 description = "A simple bpf program to monitor process traffic by cgroup_skb/egress and cgroup_skb/ingress"
 keywords = ["cgroup_skb", "libbpf"]
+readme = "README.md"
 
 [lib]
 path = "src/lib.rs"
