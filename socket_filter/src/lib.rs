@@ -52,7 +52,7 @@ impl TransmitCounter {
     /// Create a new `TransmitCounter` instance.
     /// `ignored_interfaces` is a list of interface names to ignore.
     pub fn new(ignored_interfaces: &[&'static str]) -> Self {
-        bump_memlock_rlimit().expect("Failed to increase rlimit");
+        bump_memlock_rlimit();
         let open_object = Box::leak(Box::new(MaybeUninit::uninit())); // make the ebpf prog lives as long as the process.
         let skel = open_and_load_socket_filter_prog(open_object);
         let all_interfaces = datalink::interfaces();
@@ -88,8 +88,7 @@ fn open_and_load_socket_filter_prog(
         .expect("Failed to open BPF program");
     open_skel.load().expect("Failed to load BPF program")
 }
-type DynError = Box<dyn std::error::Error>;
-fn bump_memlock_rlimit() -> Result<(), DynError> {
+fn bump_memlock_rlimit() {
     let rlimit = libc::rlimit {
         rlim_cur: 128 << 20,
         rlim_max: 128 << 20,
@@ -98,8 +97,6 @@ fn bump_memlock_rlimit() -> Result<(), DynError> {
     if unsafe { libc::setrlimit(libc::RLIMIT_MEMLOCK, &rlimit) } != 0 {
         warn!("Failed to increase rlimit");
     }
-
-    Ok(())
 }
 
 fn set_socket_opt_bpf(skel: &ProgramSkel<'static>, name: &str) {

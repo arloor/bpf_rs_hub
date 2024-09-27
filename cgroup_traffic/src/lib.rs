@@ -25,6 +25,7 @@
 use libbpf_rs::skel::{OpenSkel, SkelBuilder};
 // use object::{Object, ObjectSymbol};
 use libbpf_rs::{MapCore, MapFlags};
+use log::warn;
 use std::error::Error;
 use std::mem::MaybeUninit;
 
@@ -100,17 +101,15 @@ impl CgroupTransmitCounter {
     }
 }
 
-fn bump_memlock_rlimit() -> Result<(), DynError> {
+fn bump_memlock_rlimit() {
     let rlimit = libc::rlimit {
         rlim_cur: 128 << 20,
         rlim_max: 128 << 20,
     };
 
     if unsafe { libc::setrlimit(libc::RLIMIT_MEMLOCK, &rlimit) } != 0 {
-        println!("Failed to increase rlimit");
+        warn!("Failed to increase rlimit");
     }
-
-    Ok(())
 }
 
 use std::fs::File;
@@ -211,7 +210,7 @@ pub(crate) fn load_ebpf_skel(
 
     skel_builder.obj_builder.debug(false);
 
-    bump_memlock_rlimit()?;
+    bump_memlock_rlimit();
     let open_skel = skel_builder.open(open_object)?;
     // if let Some(pid) = opts.pid {
     //     open_skel.rodata().target_pid = pid;
