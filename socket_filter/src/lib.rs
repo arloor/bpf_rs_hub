@@ -1,4 +1,22 @@
 #![deny(warnings)]
+//! # socket_filter
+//!
+//! `socket_filter` is a library to monitor the network traffic of a network interface. By passing a list of interface names to this library, it will attach to the interfaces and monitor the network traffic of the interfaces.
+//!
+//! ## Example
+//!
+//! ```rust
+//! let socket_filter = socket_filter::TransmitCounter::default();
+//! loop {
+//!     println!(
+//!         "current bytes: {} {}",
+//!         socket_filter.get_egress(),
+//!         socket_filter.get_ingress()
+//!     );
+//!     std::thread::sleep(std::time::Duration::from_secs(1));
+//! }
+//! ```
+//!
 use libc::{
     bind, close, if_nametoindex, sockaddr_ll, socket, AF_PACKET, PF_PACKET, SOCK_CLOEXEC,
     SOCK_NONBLOCK, SOCK_RAW,
@@ -33,11 +51,9 @@ impl TransmitCounter {
 
     /// Create a new `TransmitCounter` instance.
     /// `ignored_interfaces` is a list of interface names to ignore.
-    pub fn new(
-        ignored_interfaces: &[&'static str],
-        open_object: &'static mut MaybeUninit<libbpf_rs::OpenObject>,
-    ) -> Self {
+    pub fn new(ignored_interfaces: &[&'static str]) -> Self {
         bump_memlock_rlimit().expect("Failed to increase rlimit");
+        let open_object = Box::leak(Box::new(MaybeUninit::uninit())); // make the ebpf prog lives as long as the process.
         let skel = open_and_load_socket_filter_prog(open_object);
         let all_interfaces = datalink::interfaces();
 
@@ -53,6 +69,12 @@ impl TransmitCounter {
             set_socket_opt_bpf(&skel, iface.name.as_str());
         }
         TransmitCounter { skel }
+    }
+}
+
+impl Default for TransmitCounter {
+    fn default() -> Self {
+        Self::new(&["lo", "podman", "veth", "flannel", "cni0", "utun"])
     }
 }
 

@@ -1,11 +1,7 @@
-use std::{mem::MaybeUninit, thread::sleep, time::Duration};
+use std::{thread::sleep, time::Duration};
 
 fn main() {
-    let open_object = Box::leak(Box::new(MaybeUninit::uninit()));
-    let socket_filter = socket_filter::TransmitCounter::new(
-        &["lo", "podman", "veth", "flannel", "cni0", "utun"],
-        open_object,
-    );
+    let socket_filter = socket_filter::TransmitCounter::default();
     loop {
         println!(
             "current bytes: {} {}",

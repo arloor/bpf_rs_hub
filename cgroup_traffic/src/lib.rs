@@ -5,6 +5,21 @@
 //!
 //! It use ebpf program `BPF_PROG_TYPE_CGROUP_SKB` to monitor the network traffic. Now it's only tested for Cgroup V2. It doesn't support Cgroup V1, because it cannot parse the path of cgroup V1.
 //!
+//! ## Example
+//!
+//! ```rust
+//! // monitor self's cgroup traffic
+//! let cgroup_transmit_counter = cgroup_traffic::init_cgroup_skb_monitor(cgroup_traffic::SELF)?;
+//! loop {
+//!     println!(
+//!         "current bytes: {} {}",
+//!         cgroup_transmit_counter.get_egress(),
+//!         cgroup_transmit_counter.get_ingress()
+//!     );
+//!     std::thread::sleep(std::time::Duration::from_secs(1));
+//! }
+//! ```
+//!
 //! Refer to `cgroup_traffic::init_cgroup_skb_monitor` for more information.
 
 use libbpf_rs::skel::{OpenSkel, SkelBuilder};
