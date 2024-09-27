@@ -8,7 +8,7 @@ rust-version = "1.71"
 repository = "https://github.com/arloor/bpf_rs_hub"
 homepage = "https://www.arloor.com"
 description = "A simple bpf program to monitor process traffic by cgroup_skb/egress and cgroup_skb/ingress"
-keywords = ["cgroup_skb", "process traffic", "libbpf"]
+keywords = ["cgroup_skb", "libbpf"]
 
 [lib]
 path = "src/lib.rs"
