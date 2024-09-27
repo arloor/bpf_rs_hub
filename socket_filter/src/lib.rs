@@ -21,14 +21,18 @@ pub struct TransmitCounter {
 }
 
 impl TransmitCounter {
+    /// Get the number of bytes transmitted.
     pub fn get_egress(&self) -> u64 {
         get(&self.skel, EGRESS)
     }
 
+    /// Get the number of bytes received.
     pub fn get_ingress(&self) -> u64 {
         get(&self.skel, INGRESS)
     }
 
+    /// Create a new `TransmitCounter` instance.
+    /// `ignored_interfaces` is a list of interface names to ignore.
     pub fn new(
         ignored_interfaces: &[&'static str],
         open_object: &'static mut MaybeUninit<libbpf_rs::OpenObject>,
@@ -52,7 +56,7 @@ impl TransmitCounter {
     }
 }
 
-pub fn open_and_load_socket_filter_prog(
+fn open_and_load_socket_filter_prog(
     open_object: &'static mut MaybeUninit<libbpf_rs::OpenObject>,
 ) -> ProgramSkel<'static> {
     let builder = ProgramSkelBuilder::default();
@@ -76,7 +80,7 @@ fn bump_memlock_rlimit() -> Result<(), DynError> {
     Ok(())
 }
 
-pub fn set_socket_opt_bpf(skel: &ProgramSkel<'static>, name: &str) {
+fn set_socket_opt_bpf(skel: &ProgramSkel<'static>, name: &str) {
     unsafe {
         let sock = open_raw_sock(name).expect("Failed to open raw socket");
 
@@ -113,7 +117,7 @@ fn get(skel: &ProgramSkel<'static>, direction: Direction) -> u64 {
     count
 }
 
-pub fn open_raw_sock(name: &str) -> Result<RawFd, String> {
+fn open_raw_sock(name: &str) -> Result<RawFd, String> {
     unsafe {
         let protocol = (libc::ETH_P_ALL as libc::c_short).to_be() as libc::c_int;
         let sock = socket(PF_PACKET, SOCK_RAW | SOCK_NONBLOCK | SOCK_CLOEXEC, protocol);
