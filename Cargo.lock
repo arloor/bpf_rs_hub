@@ -639,7 +639,6 @@ dependencies = [
  "log",
  "plain",
  "pnet",
- "vmlinux",
 ]
 
 [[package]]

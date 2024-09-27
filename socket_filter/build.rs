@@ -14,21 +14,7 @@ fn main() {
     .join("program.skel.rs");
     let mut builder = SkeletonBuilder::new();
     let builder = builder.source(SRC);
-    // 不依赖本地的vmlinux.h，而是使用libbpf-bootstrap项目提供的vmlinux.h，详见build-dependencies
-    #[cfg(not(feature = "remote-vmlinux"))]
-    {
-        builder.clang_args(["-I."]);
-    }
-    #[cfg(feature = "remote-vmlinux")]
-    {
-        use std::ffi::OsStr;
-        let arch = env::var("CARGO_CFG_TARGET_ARCH")
-            .expect("CARGO_CFG_TARGET_ARCH must be set in build script");
-        builder.clang_args([
-            OsStr::new("-I"),
-            vmlinux::include_path_root().join(arch).as_os_str(),
-        ]);
-    }
+    builder.clang_args(["-I."]);
     builder.build_and_generate(&out).unwrap();
     println!("cargo:rerun-if-changed={SRC}");
 }

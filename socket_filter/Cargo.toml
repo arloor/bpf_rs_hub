@@ -3,6 +3,13 @@ name = "socket_filter"
 version = "0.1.0"
 authors = ["arloor <admin@arloor.com>"]
 edition = "2021"
+license = "LGPL-2.1-only OR BSD-2-Clause"
+rust-version = "1.71"
+repository = "https://github.com/arloor/bpf_rs_hub"
+homepage = "https://github.com/arloor/bpf_rs_hub/tree/master/socket_filter"
+description = "A simple bpf program to monitor host's net traffic"
+keywords = ["socket", "libbpf"]
+readme = "README.md"
 
 [lib]
 path = "src/lib.rs" # 库文件的路径
@@ -19,11 +26,9 @@ pnet = "0.35"                                              # Rust library for lo
 log.workspace = true
 
 [build-dependencies]
-libbpf-cargo = "0.24"                           # Cargo plugin to build bpf programs
-vmlinux = { workspace = true, optional = true }
+libbpf-cargo = "0.24" # Cargo plugin to build bpf programs
 
 [features]
 default = ["libbpf-rs/default"]
 vendored = ["libbpf-rs/vendored"]
 static = ["libbpf-rs/static"]
-remote-vmlinux = ["vmlinux"]
