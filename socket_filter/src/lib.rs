@@ -36,7 +36,8 @@ use libbpf_rs::{MapCore, MapFlags};
 use pnet::datalink;
 use std::mem::{size_of_val, MaybeUninit};
 
-pub const IGNORED_IFACE: &[&str; 6] = &["lo", "podman", "veth", "flannel", "cni0", "utun"];
+pub const IGNORED_IFACE: &[&str; 7] =
+    &["lo", "podman", "veth", "flannel", "cni0", "utun", "docker"];
 
 pub struct TransmitCounter {
     skel: ProgramSkel<'static>,
