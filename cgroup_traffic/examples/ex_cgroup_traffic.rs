@@ -9,7 +9,7 @@ pub fn main() -> Result<(), DynError> {
     let _ = env_logger::builder()
         .filter_level(log::LevelFilter::Info)
         .try_init();
-    let cgroup_transmit_counter = cgroup_traffic::init_self_cgroup_skb_monitor()?;
+    let cgroup_transmit_counter = cgroup_traffic::init_cgroup_skb_monitor(cgroup_traffic::SELF)?;
     loop {
         info!(
             "current bytes: {} {}",

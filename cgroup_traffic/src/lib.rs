@@ -76,13 +76,15 @@ pub fn list_pids_in_cgroup(cgroup_path: &str) -> io::Result<Vec<i32>> {
 
     Ok(pids)
 }
-
-pub fn init_self_cgroup_skb_monitor() -> Result<CgroupTransmitCounter, Box<dyn std::error::Error>> {
+pub const SELF: &str = "self";
+pub fn init_cgroup_skb_monitor(
+    pid: &str,
+) -> Result<CgroupTransmitCounter, Box<dyn std::error::Error>> {
     let open_object = Box::leak(Box::new(std::mem::MaybeUninit::uninit())); // leak it to make it 'static, so our bpf prog lives 'static
-    let mut cgroup_transmit_counter = attach_self_cgroup(open_object)?;
-    let cgroup = get_self_cgroup()?;
+    let mut cgroup_transmit_counter = load_ebpf_skel(open_object)?;
+    let cgroup = get_pid_cgroup(pid)?;
     log::info!(
-        "attach to self's cgroup: [ {} ], pids: {:?}",
+        "attach to {pid}'s cgroup: [ {} ], pids: {:?}",
         cgroup.0,
         cgroup.1
     );
@@ -100,7 +102,7 @@ pub fn init_self_cgroup_skb_monitor() -> Result<CgroupTransmitCounter, Box<dyn s
     Ok(cgroup_transmit_counter)
 }
 
-pub(crate) fn get_self_cgroup() -> io::Result<(String, Vec<i32>)> {
+pub(crate) fn get_pid_cgroup(pid: &str) -> io::Result<(String, Vec<i32>)> {
     let cgroup_dir = Path::new("/sys/fs/cgroup");
     if !cgroup_dir.exists() {
         return Err(io::Error::new(
@@ -109,7 +111,8 @@ pub(crate) fn get_self_cgroup() -> io::Result<(String, Vec<i32>)> {
         ));
     }
 
-    let path = Path::new("/proc/self/cgroup");
+    let proc_fs = format!("/proc/{}/cgroup", pid);
+    let path = Path::new(proc_fs.as_str());
     let file = File::open(path)?;
     let reader = io::BufReader::new(file);
 
@@ -132,13 +135,7 @@ pub(crate) fn get_self_cgroup() -> io::Result<(String, Vec<i32>)> {
     ))
 }
 
-pub(crate) fn attach_self_cgroup(
-    open_object: &'static mut MaybeUninit<libbpf_rs::OpenObject>,
-) -> Result<CgroupTransmitCounter, DynError> {
-    attach_cgroup(open_object)
-}
-
-pub(crate) fn attach_cgroup(
+pub(crate) fn load_ebpf_skel(
     open_object: &'static mut MaybeUninit<libbpf_rs::OpenObject>,
 ) -> Result<CgroupTransmitCounter, DynError> {
     let mut skel_builder = ProgramSkelBuilder::default();
