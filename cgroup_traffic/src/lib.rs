@@ -91,7 +91,7 @@ pub fn init_cgroup_skb_monitor(
     let file = std::fs::OpenOptions::new()
         .read(true)
         .write(false)
-        .open(cgroup.0)?; // a standalone line, to make `file` leave longer.
+        .open(cgroup.0)?; // a standalone line, to make `file` live longer. https://github.com/libbpf/libbpf-rs/issues/197
     use std::os::fd::AsRawFd;
     let cgroup_fd = file.as_raw_fd();
     let progs = &mut cgroup_transmit_counter.skel.progs;
