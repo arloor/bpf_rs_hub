@@ -8,9 +8,9 @@ use prog::*;
 use std::os::fd::AsRawFd;
 use std::os::unix::io::RawFd;
 use std::{ffi::CString, os::fd::AsFd};
-//https://github.com/libbpf/libbpf-bootstrap/blob/master/examples/c/sockfilter.bpf.c
-#[path = "bpf/program.skel.rs"]
-mod prog;
+mod prog {
+    include!(concat!(env!("OUT_DIR"), "/program.skel.rs"));
+}
 use libbpf_rs::skel::{OpenSkel, SkelBuilder};
 use libbpf_rs::{MapCore, MapFlags};
 use pnet::datalink;
