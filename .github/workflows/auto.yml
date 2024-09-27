@@ -1,0 +1,31 @@
+name: auto_release
+on:
+  push:
+    branches: [ "release"]
+permissions:
+  contents: write
+jobs:
+  standard:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set outputs
+        id: vars
+        run: echo "sha_short=$(git rev-parse --short=8 HEAD)" >> $GITHUB_OUTPUT
+      - name: create version release
+        if: github.event_name == 'push' && startsWith(github.ref, 'refs/heads/release/')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # 从Cargo.toml中提取版本号
+          version=$(cat version)
+            #   version="v${version}"
+            #   if [ -z "$version" ]; then echo "version not found"; exit 1; fi
+            #   if $(gh release delete ${version} -y --cleanup-tag); 
+            #     then echo "delete old release"; 
+            #     else echo "no old release";
+            #   fi
+          git config --local user.email "admin@arloor.com"
+          git config --local user.name "arloor"
+          gh release create ${version} version -n "$version" --latest -t "$version"
+  
