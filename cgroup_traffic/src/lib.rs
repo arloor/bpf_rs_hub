@@ -1,7 +1,33 @@
 #![deny(warnings)]
+//! # cgroup_traffic
+//!
+//! `cgroup_traffic` is a library to monitor the network traffic of a cgroup. By passing a pid to this library, it will attach to the cgroup of the pid and monitor the network traffic of the cgroup.
+//!
+//! It use ebpf program `BPF_PROG_TYPE_CGROUP_SKB` to monitor the network traffic. Now it's only tested for Cgroup V2. It doesn't support Cgroup V1, because it cannot parse the path of cgroup V1.
+//!
+//! ## Examples
+//!
+//! ```rust
+//! pub fn main() -> Result<(), Box<dyn std::error::Error>> {
+//!     let cgroup_transmit_counter = cgroup_traffic::init_cgroup_skb_monitor(cgroup_traffic::SELF)?;
+//!     loop {
+//!         println!(
+//!             "current bytes: {} {}",
+//!             cgroup_transmit_counter.get_egress(),
+//!             cgroup_transmit_counter.get_ingress()
+//!         );
+//!         std::thread::sleep(std::time::Duration::from_secs(1));
+//!     }
+//! }
+//! ```
+//!  
+//! Refer to `cgroup_traffic::init_cgroup_skb_monitor` if you want to attach to a specific cgroup path.
+//!
+
 use libbpf_rs::skel::{OpenSkel, SkelBuilder};
 // use object::{Object, ObjectSymbol};
 use libbpf_rs::{MapCore, MapFlags};
+use std::error::Error;
 use std::mem::MaybeUninit;
 
 mod prog {
@@ -14,8 +40,11 @@ use prog::*;
 
 type DynError = Box<dyn std::error::Error>;
 
+/// The CgroupTransmitCounter is a struct to monitor the network traffic of a cgroup.
+/// 
+/// It contains two methods to get the egress and ingress bytes of the cgroup.
 pub struct CgroupTransmitCounter {
-    pub skel: ProgramSkel<'static>,
+    pub(crate) skel: ProgramSkel<'static>,
 }
 
 struct Direction(u32);
@@ -37,10 +66,40 @@ fn get(skel: &ProgramSkel<'static>, direction: Direction) -> u64 {
 }
 
 impl CgroupTransmitCounter {
+    /// Create a new CgroupTransmitCounter.
+    /// 
+    /// It will load the ebpf program and return a CgroupTransmitCounter.
+    pub fn new() -> Result<CgroupTransmitCounter, Box<dyn Error>> {
+        let open_object = Box::leak(Box::new(std::mem::MaybeUninit::uninit()));
+        let cgroup_transmit_counter = load_ebpf_skel(open_object)?;
+        Ok(cgroup_transmit_counter)
+    }
+
+    /// Attach the ebpf program to a cgroup.
+    /// 
+    /// The cgroup_path should be a full path to the cgroup directory.
+    pub fn attach_cgroup(&mut self, cgroup_path: String) -> Result<(), Box<dyn Error>> {
+        let file = std::fs::OpenOptions::new()
+            .read(true)
+            .write(false)
+            .open(cgroup_path)?;
+        // a standalone line, to make `file` live longer. https://github.com/libbpf/libbpf-rs/issues/197
+        use std::os::fd::AsRawFd;
+        let cgroup_fd = file.as_raw_fd();
+        let progs = &mut self.skel.progs;
+        let link_egress = progs.count_egress_packets.attach_cgroup(cgroup_fd)?;
+        Box::leak(Box::new(link_egress));
+        let link_ingress = progs.count_ingress_packets.attach_cgroup(cgroup_fd)?;
+        Box::leak(Box::new(link_ingress));
+        Ok(())
+    }
+
+    /// Get the egress bytes of the cgroup.
     pub fn get_egress(&self) -> u64 {
         get(&self.skel, EGRESS)
     }
 
+    /// Get the ingress bytes of the cgroup.
     pub fn get_ingress(&self) -> u64 {
         get(&self.skel, INGRESS)
     }
@@ -63,8 +122,15 @@ use std::fs::File;
 use std::io::{self, BufRead, Read};
 use std::path::Path;
 
+/// List all PIDs in a cgroup.
+///
+/// The cgroup path should be a full path to the cgroup directory.
+///
+/// Returns a list of PIDs in the cgroup.
+///
+/// ONLY support Cgroup V2
 pub fn list_pids_in_cgroup(cgroup_path: &str) -> io::Result<Vec<i32>> {
-    let procs_path = Path::new(cgroup_path).join("cgroup.procs");
+    let procs_path = Path::new(cgroup_path).join(CGROUP_PROCS);
     let mut file = File::open(procs_path)?;
     let mut content = String::new();
     file.read_to_string(&mut content)?;
@@ -76,33 +142,41 @@ pub fn list_pids_in_cgroup(cgroup_path: &str) -> io::Result<Vec<i32>> {
 
     Ok(pids)
 }
+/// Helpful constant to monitor /proc/self/cgroup
 pub const SELF: &str = "self";
+const CGROUP_PROCS: &str = "cgroup.procs";
+
+/// Initialize the cgroup skb monitor.
+///
+/// It will attach to the cgroup of the pid. The pid should be a string of the process id.
+///
+/// Steps:
+/// 1. Load the ebpf program
+/// 2. Get the cgroup path of the pid. ONLY support CgroupV2
+/// 3. Attach the ebpf program to the cgroup
+///
+/// You can replace step 2 with a specific cgroup path as you like.
 pub fn init_cgroup_skb_monitor(
     pid: &str,
 ) -> Result<CgroupTransmitCounter, Box<dyn std::error::Error>> {
-    let open_object = Box::leak(Box::new(std::mem::MaybeUninit::uninit())); // leak it to make it 'static, so our bpf prog lives 'static
-    let mut cgroup_transmit_counter = load_ebpf_skel(open_object)?;
+    let mut cgroup_transmit_counter = CgroupTransmitCounter::new()?;
     let cgroup = get_pid_cgroup(pid)?;
     log::info!(
-        "attach to {pid}'s cgroup: [ {} ], pids: {:?}",
+        "attach to {pid}'s cgroup: [ {} ], contain these pids: {:?}",
         cgroup.0,
         cgroup.1
     );
-    let file = std::fs::OpenOptions::new()
-        .read(true)
-        .write(false)
-        .open(cgroup.0)?; // a standalone line, to make `file` live longer. https://github.com/libbpf/libbpf-rs/issues/197
-    use std::os::fd::AsRawFd;
-    let cgroup_fd = file.as_raw_fd();
-    let progs = &mut cgroup_transmit_counter.skel.progs;
-    let link_egress = progs.count_egress_packets.attach_cgroup(cgroup_fd)?;
-    Box::leak(Box::new(link_egress)); // leak it to make it 'static, so our bpf prog lives 'static
-    let link_ingress = progs.count_ingress_packets.attach_cgroup(cgroup_fd)?;
-    Box::leak(Box::new(link_ingress)); // leak it to make it 'static, so our bpf prog lives 'static
+    let cgroup_path = cgroup.0;
+    cgroup_transmit_counter.attach_cgroup(cgroup_path)?;
     Ok(cgroup_transmit_counter)
 }
 
-pub(crate) fn get_pid_cgroup(pid: &str) -> io::Result<(String, Vec<i32>)> {
+/// Get the cgroup path of a pid.
+///
+/// The pid should be a string of the process id.
+///
+/// Use `/sys/fs/cgroup` and  `/proc/{pid}/cgroup` to get the actual cgroup path.
+pub fn get_pid_cgroup(pid: &str) -> io::Result<(String, Vec<i32>)> {
     let cgroup_dir = Path::new("/sys/fs/cgroup");
     if !cgroup_dir.exists() {
         return Err(io::Error::new(
