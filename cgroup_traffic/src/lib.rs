@@ -251,7 +251,7 @@ fn get_cgroups_of(process_name: &str) -> Result<Vec<String>, DynError> {
                     log::info!(
                         "process:{:^10}, pid:{:^10}, cgroup: {cgroup_path}",
                         process_name,
-                        pid
+                        pid,
                     );
                     Some(cgroup_path)
                 }
@@ -277,7 +277,11 @@ pub fn init_cgroup_skb_for_process_name(
     }
     let mut cgroup_transmit_counter = CgroupTransmitCounter::new()?;
     for cgroup in cgroups.iter() {
-        log::info!("attach to cgroup: [ {} ]", cgroup);
+        log::info!(
+            "attach to cgroup: [ {} ], contains pid: {:?}",
+            cgroup,
+            list_pids_in_cgroup(cgroup)?
+        );
         let file = std::fs::OpenOptions::new()
             .read(true)
             .write(false)
