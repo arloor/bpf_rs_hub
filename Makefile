@@ -1,4 +1,4 @@
 .PHONY: publish
 
 publish:
-	cargo publish -p cgroup_traffic --no-verify
+	cargo publish -p cgroup_traffic
