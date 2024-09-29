@@ -1,6 +1,6 @@
 [package]
 name = "cgroup_traffic"
-version = "0.1.7"
+version = "0.1.8"
 authors = ["arloor <admin@arloor.com>"]
 edition = "2021"
 license = "LGPL-2.1-only OR BSD-2-Clause"

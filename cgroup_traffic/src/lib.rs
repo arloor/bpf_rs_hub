@@ -225,7 +225,8 @@ fn get_pids_of(process_name: &str) -> Result<Vec<(u32, String)>, DynError> {
     let output = Command::new("sh")
         .arg("-c")
         .arg(format!(
-            "ps -eo pid,comm|grep -E \"{process_name}\"|grep -v grep|awk '{{print $1\",,\"$2}}'"
+            r#"ps -eo pid,comm | awk '$2 ~ /{}/ {{print $1",,"$2}}'"#,
+            process_name
         ))
         .output()?;
     Ok(String::from_utf8(output.stdout)?
@@ -267,7 +268,7 @@ fn get_cgroups_of(process_name: &str) -> Result<Vec<String>, DynError> {
 
 /// Initialize the eBPF program for monitoring the cgroup traffic of processes with the process name.
 /// It will attach to a group of cgroups that the processes belongs to.
-/// process_name can be `grep -E` pattern, like "sshd|nginx".
+/// process_name can be `grep -E` pattern(EREs), like "sshd|nginx|^rust-analyzer$".
 pub fn init_cgroup_skb_for_process_name(
     process_name: &str,
 ) -> Result<CgroupTransmitCounter, Box<dyn std::error::Error>> {
