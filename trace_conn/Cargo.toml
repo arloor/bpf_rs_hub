@@ -6,13 +6,13 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-libbpf-rs = { version = "0.24", default-features = false }
+libbpf-rs = { workspace = true, default-features = false }
 plain.workspace = true
 libc.workspace = true
 object = "0.36"
 
 [build-dependencies]
-libbpf-cargo = "0.24"                           # Cargo plugin to build bpf programs
+libbpf-cargo = { workspace = true }             # Cargo plugin to build bpf programs
 vmlinux = { workspace = true, optional = true }
 
 

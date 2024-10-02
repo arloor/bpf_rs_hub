@@ -20,13 +20,13 @@ path = "examples/example1.rs"
 
 [dependencies]
 libc.workspace = true                                      # Raw FFI bindings to platform libraries like libc
-libbpf-rs = { version = "0.24", default-features = false } # libbpf-rs is a safe, idiomatic, and opinionated wrapper around libbpf-sys
+libbpf-rs = { workspace = true, default-features = false } # libbpf-rs is a safe, idiomatic, and opinionated wrapper around libbpf-sys
 plain.workspace = true                                     # A small Rust library that allows users to reinterpret data of certain types safely
 pnet = "0.35"                                              # Rust library for low level networking using the pcap library
 log.workspace = true
 
 [build-dependencies]
-libbpf-cargo = "0.24" # Cargo plugin to build bpf programs
+libbpf-cargo = { workspace = true } # Cargo plugin to build bpf programs
 
 [features]
 default = ["libbpf-rs/default"]

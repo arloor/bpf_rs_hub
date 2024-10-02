@@ -17,7 +17,8 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          version=$(cat version)
+          version=$(grep -E ^version Cargo.toml|awk -F "[\"]" '{print $2}')
+          if [ -z "$version" ]; then echo "version not found"; exit 1; fi
           if ! gh release view "${version}" --json createdAt > /dev/null 2>&1; then
             git config --local user.email "admin@arloor.com"
             git config --local user.name "arloor"
