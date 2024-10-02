@@ -22,7 +22,7 @@ jobs:
           if ! gh release view "${version}" --json createdAt > /dev/null 2>&1; then
             git config --local user.email "admin@arloor.com"
             git config --local user.name "arloor"
-            gh release create ${version} version -n "$version" --latest -t "$version"
+            gh release create ${version} -n "$version" --latest -t "$version"
           else 
             echo release already exists!
             exit 1
