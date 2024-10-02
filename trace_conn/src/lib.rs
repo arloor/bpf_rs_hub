@@ -69,7 +69,7 @@ where
     // if let Some(pid) = opts.pid {
     //     open_skel.rodata().target_pid = pid;
     // }
-    let mut skel = open_skel.load()?;
+    let skel = open_skel.load()?;
     let address = get_symbol_address(glibc, "getaddrinfo")?;
 
     let _uprobe = skel

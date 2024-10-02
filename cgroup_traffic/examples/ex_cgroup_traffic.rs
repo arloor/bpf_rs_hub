@@ -6,7 +6,7 @@ pub fn main() -> Result<(), Box<dyn std::error::Error>> {
         .filter_level(log::LevelFilter::Info)
         .try_init();
     let cgroup_transmit_counter =
-        cgroup_traffic::init_cgroup_skb_for_process_name("sshd|nginx|^rust-analyzer$")?;
+        cgroup_traffic::init_cgroup_skb_for_process_name("^rust-analyzer$")?;
     // let cgroup_transmit_counter = cgroup_traffic::init_cgroup_skb_monitor(cgroup_traffic::SELF)?;
     loop {
         info!(
