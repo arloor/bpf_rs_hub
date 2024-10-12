@@ -3,7 +3,7 @@
 [workspace.dependencies]
 libbpf-cargo = "0.24"
 libbpf-rs = { version = "0.24", default-features = false }                       # Cargo plugin to build bpf programs
-vmlinux = { git = "https://github.com/libbpf/libbpf-rs.git", branch = "master" }
+vmlinux = { version = "0.0", git = "https://github.com/libbpf/vmlinux.h.git", rev = "a9c092aa771310bf8b00b5018f7d40a1fdb6ec82" }
 log = "0.4"
 libc = "0.2"
 plain = "0.2.3"
