@@ -39,30 +39,28 @@ use std::mem::{size_of_val, MaybeUninit};
 pub const IGNORED_IFACE: &[&str; 7] =
     &["lo", "podman", "veth", "flannel", "cni0", "utun", "docker"];
 
-pub struct TransmitCounter {
-    skel: ProgramSkel<'static>,
-}
+pub struct TransmitCounter<'a>(pub ProgramSkel<'a>);
 
-impl TransmitCounter {
+impl TransmitCounter<'_> {
     /// Get the number of bytes transmitted.
     pub fn get_egress(&self) -> u64 {
-        get(&self.skel, EGRESS)
+        get(&self.0, EGRESS)
     }
 
     /// Get the number of bytes received.
     pub fn get_ingress(&self) -> u64 {
-        get(&self.skel, INGRESS)
+        get(&self.0, INGRESS)
     }
 
     /// Create a new `TransmitCounter` instance.
     /// `ignored_interfaces` is a list of interface names to ignore.
-    pub fn new(
-        open_object: &'static mut MaybeUninit<libbpf_rs::OpenObject>,
-        ignored_interfaces: &[&'static str],
-    ) -> Result<Self, DynError> {
+    pub fn init<'a>(
+        open_object: &'a mut MaybeUninit<libbpf_rs::OpenObject>,
+        ignored_interfaces: &[&'a str],
+    ) -> Result<ProgramSkel<'a>, DynError> {
         bump_memlock_rlimit()?;
 
-        let skel = open_and_load_socket_filter_prog(open_object)?;
+        let skel: ProgramSkel<'a> = open_and_load_socket_filter_prog(open_object)?;
         let all_interfaces = datalink::interfaces();
 
         // 遍历接口列表
@@ -76,13 +74,13 @@ impl TransmitCounter {
             info!("load bpf socket filter for Interface: {}", iface.name);
             set_socket_opt_bpf(&skel, iface.name.as_str())?;
         }
-        Ok(TransmitCounter { skel })
+        Ok(skel)
     }
 }
 
 fn open_and_load_socket_filter_prog(
-    open_object: &'static mut MaybeUninit<libbpf_rs::OpenObject>,
-) -> Result<ProgramSkel<'static>, DynError> {
+    open_object: &'_ mut MaybeUninit<libbpf_rs::OpenObject>,
+) -> Result<ProgramSkel<'_>, DynError> {
     let builder = ProgramSkelBuilder::default();
     let open_skel = builder.open(open_object)?;
     Ok(open_skel.load()?)
@@ -100,7 +98,7 @@ fn bump_memlock_rlimit() -> Result<(), DynError> {
     Ok(())
 }
 
-fn set_socket_opt_bpf(skel: &ProgramSkel<'static>, name: &str) -> Result<(), DynError> {
+fn set_socket_opt_bpf(skel: &ProgramSkel<'_>, name: &str) -> Result<(), DynError> {
     unsafe {
         let sock = open_raw_sock(name)?;
 
@@ -125,7 +123,7 @@ fn set_socket_opt_bpf(skel: &ProgramSkel<'static>, name: &str) -> Result<(), Dyn
 struct Direction(u32);
 const EGRESS: Direction = Direction(0);
 const INGRESS: Direction = Direction(1);
-fn get(skel: &ProgramSkel<'static>, direction: Direction) -> u64 {
+fn get(skel: &ProgramSkel<'_>, direction: Direction) -> u64 {
     let maps = &skel.maps;
     let map = &maps.traffic;
     let key = unsafe { plain::as_bytes(&direction.0) };
