@@ -25,7 +25,7 @@
 
 use libbpf_rs::skel::{OpenSkel, SkelBuilder};
 // use object::{Object, ObjectSymbol};
-use libbpf_rs::{MapCore, MapFlags};
+use libbpf_rs::{Link, MapCore, MapFlags};
 use std::collections::HashSet;
 use std::mem::MaybeUninit;
 use std::process::Command;
@@ -66,8 +66,9 @@ impl CgroupTransmitCounter {
     /// Create a new CgroupTransmitCounter.
     ///
     /// It will load the ebpf program and return a CgroupTransmitCounter.
-    pub fn new() -> Result<CgroupTransmitCounter, DynError> {
-        let open_object = Box::leak(Box::new(std::mem::MaybeUninit::uninit()));
+    pub fn new(
+        open_object: &'static mut MaybeUninit<libbpf_rs::OpenObject>,
+    ) -> Result<CgroupTransmitCounter, DynError> {
         let cgroup_transmit_counter = load_ebpf_skel(open_object)?;
         Ok(cgroup_transmit_counter)
     }
@@ -75,7 +76,7 @@ impl CgroupTransmitCounter {
     /// Attach the ebpf program to a cgroup.
     ///
     /// The cgroup_path should be a full path to the cgroup directory.
-    pub fn attach_cgroup(&mut self, cgroup_path: String) -> Result<(), DynError> {
+    pub fn attach_cgroup(&mut self, cgroup_path: String) -> Result<(Link, Link), DynError> {
         let file = std::fs::OpenOptions::new()
             .read(true)
             .write(false)
@@ -85,10 +86,8 @@ impl CgroupTransmitCounter {
         let cgroup_fd = file.as_raw_fd();
         let progs = &mut self.skel.progs;
         let link_egress = progs.count_egress_packets.attach_cgroup(cgroup_fd)?;
-        Box::leak(Box::new(link_egress));
         let link_ingress = progs.count_ingress_packets.attach_cgroup(cgroup_fd)?;
-        Box::leak(Box::new(link_ingress));
-        Ok(())
+        Ok((link_ingress, link_egress))
     }
 
     /// Get the egress bytes of the cgroup.
@@ -153,18 +152,19 @@ const CGROUP_PROCS: &str = "cgroup.procs";
 ///
 /// You can replace step 2 with a specific cgroup path as you like.
 pub fn init_cgroup_skb_monitor(
+    open_object: &'static mut MaybeUninit<libbpf_rs::OpenObject>,
     pid: &str,
-) -> Result<CgroupTransmitCounter, Box<dyn std::error::Error>> {
+) -> Result<(CgroupTransmitCounter, (Link, Link)), Box<dyn std::error::Error>> {
     let cgroup = get_pid_cgroup(pid)?;
-    let mut cgroup_transmit_counter = CgroupTransmitCounter::new()?;
+    let mut cgroup_transmit_counter = CgroupTransmitCounter::new(open_object)?;
     log::info!(
         "attach to {pid}'s cgroup: [ {} ], contain these pids: {:?}",
         cgroup.0,
         cgroup.1
     );
     let cgroup_path = cgroup.0;
-    cgroup_transmit_counter.attach_cgroup(cgroup_path)?;
-    Ok(cgroup_transmit_counter)
+    let links = cgroup_transmit_counter.attach_cgroup(cgroup_path)?;
+    Ok((cgroup_transmit_counter, links))
 }
 
 /// Get the cgroup path of a pid.
@@ -270,13 +270,15 @@ fn get_cgroups_of(process_name: &str) -> Result<Vec<String>, DynError> {
 /// It will attach to a group of cgroups that the processes belongs to.
 /// process_name can be `grep -E` pattern(EREs), like "sshd|nginx|^rust-analyzer$".
 pub fn init_cgroup_skb_for_process_name(
+    open_object: &'static mut MaybeUninit<libbpf_rs::OpenObject>,
     process_name: &str,
-) -> Result<CgroupTransmitCounter, Box<dyn std::error::Error>> {
+) -> Result<(CgroupTransmitCounter, Vec<Link>), Box<dyn std::error::Error>> {
     let cgroups = get_cgroups_of(process_name)?;
     if cgroups.is_empty() {
         return Err("No cgroup found".into());
     }
-    let mut cgroup_transmit_counter = CgroupTransmitCounter::new()?;
+    let mut cgroup_transmit_counter = CgroupTransmitCounter::new(open_object)?;
+    let mut links = vec![];
     for cgroup in cgroups.iter() {
         log::info!(
             "attach to cgroup: [ {} ], contains pid: {:?}",
@@ -291,9 +293,9 @@ pub fn init_cgroup_skb_for_process_name(
         let cgroup_fd = file.as_raw_fd();
         let progs = &mut cgroup_transmit_counter.skel.progs;
         let link_egress = progs.count_egress_packets.attach_cgroup(cgroup_fd)?;
-        Box::leak(Box::new(link_egress)); // leak it to make it 'static, so our bpf prog lives 'static
         let link_ingress = progs.count_ingress_packets.attach_cgroup(cgroup_fd)?;
-        Box::leak(Box::new(link_ingress)); // leak it to make it 'static, so our bpf prog lives 'static
+        links.push(link_egress);
+        links.push(link_ingress);
     }
-    Ok(cgroup_transmit_counter)
+    Ok((cgroup_transmit_counter, links))
 }

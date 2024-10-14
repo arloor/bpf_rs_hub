@@ -1,5 +1,9 @@
+use std::mem::MaybeUninit;
+
 pub fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let socket_filter = socket_filter::TransmitCounter::new(socket_filter::IGNORED_IFACE)?;
+    let open_object = Box::leak(Box::new(MaybeUninit::uninit())); // make the ebpf prog lives as long as the process.
+    let socket_filter =
+        socket_filter::TransmitCounter::new(open_object, socket_filter::IGNORED_IFACE)?;
     loop {
         println!(
             "current bytes: {} {}",

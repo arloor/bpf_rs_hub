@@ -56,9 +56,12 @@ impl TransmitCounter {
 
     /// Create a new `TransmitCounter` instance.
     /// `ignored_interfaces` is a list of interface names to ignore.
-    pub fn new(ignored_interfaces: &[&'static str]) -> Result<Self, DynError> {
+    pub fn new(
+        open_object: &'static mut MaybeUninit<libbpf_rs::OpenObject>,
+        ignored_interfaces: &[&'static str],
+    ) -> Result<Self, DynError> {
         bump_memlock_rlimit()?;
-        let open_object = Box::leak(Box::new(MaybeUninit::uninit())); // make the ebpf prog lives as long as the process.
+
         let skel = open_and_load_socket_filter_prog(open_object)?;
         let all_interfaces = datalink::interfaces();
 
