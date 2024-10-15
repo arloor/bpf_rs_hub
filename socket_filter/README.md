@@ -4,8 +4,15 @@ use epbf program type `BPF_PROG_TYPE_SOCKET_FILTER` to monitor the network traff
 # Example
 
 ```rust
+use std::mem::MaybeUninit;
+
+use socket_filter::TransmitCounter;
+
 pub fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let socket_filter = socket_filter::TransmitCounter::new(socket_filter::IGNORED_IFACE)?;
+    let mut open_object = MaybeUninit::uninit(); // make the ebpf prog lives as long as the process.
+    let skel =
+        socket_filter::TransmitCounter::init(&mut open_object, socket_filter::IGNORED_IFACE)?;
+    let socket_filter = TransmitCounter(skel);
     loop {
         println!(
             "current bytes: {} {}",

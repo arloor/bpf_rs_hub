@@ -3,22 +3,6 @@
 //!
 //! `socket_filter` is a library to monitor the network traffic of a network interface. By passing a list of interface names to this library, it will attach to the interfaces and monitor the network traffic of the interfaces.
 //!
-//! ## Example
-//!
-//! ```rust
-//! pub fn main() -> Result<(), Box<dyn std::error::Error>> {
-//!     let socket_filter = socket_filter::TransmitCounter::new(socket_filter::IGNORED_IFACE)?;
-//!     loop {
-//!         println!(
-//!             "current bytes: {} {}",
-//!             socket_filter.get_egress(),
-//!             socket_filter.get_ingress()
-//!         );
-//!         std::thread::sleep(std::time::Duration::from_secs(1));
-//!     }
-//! }
-//! ```
-//!
 use libc::{
     bind, close, if_nametoindex, sockaddr_ll, socket, AF_PACKET, PF_PACKET, SOCK_CLOEXEC,
     SOCK_NONBLOCK, SOCK_RAW,
