@@ -38,13 +38,13 @@ impl TransmitCounter<'_> {
 
     /// Create a new `TransmitCounter` instance.
     /// `ignored_interfaces` is a list of interface names to ignore.
-    pub fn init<'a>(
+    pub fn new<'a>(
         open_object: &'a mut MaybeUninit<libbpf_rs::OpenObject>,
         ignored_interfaces: &[&'a str],
-    ) -> Result<ProgramSkel<'a>, DynError> {
+    ) -> Result<TransmitCounter<'a>, DynError> {
         bump_memlock_rlimit()?;
 
-        let skel: ProgramSkel<'a> = open_and_load_socket_filter_prog(open_object)?;
+        let skel = open_and_load_socket_filter_prog(open_object)?;
         let all_interfaces = datalink::interfaces();
 
         // 遍历接口列表
@@ -58,7 +58,7 @@ impl TransmitCounter<'_> {
             info!("load bpf socket filter for Interface: {}", iface.name);
             set_socket_opt_bpf(&skel, iface.name.as_str())?;
         }
-        Ok(skel)
+        Ok(TransmitCounter(skel))
     }
 }
 
