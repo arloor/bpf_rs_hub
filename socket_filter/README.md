@@ -6,13 +6,10 @@ use epbf program type `BPF_PROG_TYPE_SOCKET_FILTER` to monitor the network traff
 ```rust
 use std::mem::MaybeUninit;
 
-use socket_filter::TransmitCounter;
-
 pub fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut open_object = MaybeUninit::uninit(); // make the ebpf prog lives as long as the process.
-    let skel =
-        socket_filter::TransmitCounter::init(&mut open_object, socket_filter::IGNORED_IFACE)?;
-    let socket_filter = TransmitCounter(skel);
+    let socket_filter =
+        socket_filter::TransmitCounter::new(&mut open_object, socket_filter::IGNORED_IFACE)?;
     loop {
         println!(
             "current bytes: {} {}",
@@ -22,4 +19,5 @@ pub fn main() -> Result<(), Box<dyn std::error::Error>> {
         std::thread::sleep(std::time::Duration::from_secs(1));
     }
 }
+
 ```
