@@ -55,7 +55,7 @@ fn get_symbol_address(so_path: &str, fn_name: &str) -> Result<usize, DynError> {
 pub fn start<F>(
     glibc: &str,
     handler: F,
-    open_object: &'static mut MaybeUninit<libbpf_rs::OpenObject>,
+    open_object: &'_ mut MaybeUninit<libbpf_rs::OpenObject>,
 ) -> Result<(), DynError>
 where
     F: FnMut(i32, &[u8]),

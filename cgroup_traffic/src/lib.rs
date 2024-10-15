@@ -40,14 +40,14 @@ type DynError = Box<dyn std::error::Error>;
 /// The CgroupTransmitCounter is a struct to monitor the network traffic of a cgroup.
 ///
 /// It contains two methods to get the egress and ingress bytes of the cgroup.
-pub struct CgroupTransmitCounter {
-    pub(crate) skel: ProgramSkel<'static>,
+pub struct CgroupTransmitCounter<'a> {
+    pub(crate) skel: ProgramSkel<'a>,
 }
 
 struct Direction(u32);
 const EGRESS: Direction = Direction(0);
 const INGRESS: Direction = Direction(1);
-fn get(skel: &ProgramSkel<'static>, direction: Direction) -> u64 {
+fn get(skel: &ProgramSkel<'_>, direction: Direction) -> u64 {
     let maps = &skel.maps;
     let map = &maps.process_traffic;
     let key = unsafe { plain::as_bytes(&direction.0) };
@@ -62,12 +62,12 @@ fn get(skel: &ProgramSkel<'static>, direction: Direction) -> u64 {
     count
 }
 
-impl CgroupTransmitCounter {
+impl<'a> CgroupTransmitCounter<'a> {
     /// Create a new CgroupTransmitCounter.
     ///
     /// It will load the ebpf program and return a CgroupTransmitCounter.
     pub fn new(
-        open_object: &'static mut MaybeUninit<libbpf_rs::OpenObject>,
+        open_object: &'a mut MaybeUninit<libbpf_rs::OpenObject>,
     ) -> Result<CgroupTransmitCounter, DynError> {
         let cgroup_transmit_counter = load_ebpf_skel(open_object)?;
         Ok(cgroup_transmit_counter)
@@ -151,10 +151,10 @@ const CGROUP_PROCS: &str = "cgroup.procs";
 /// 3. Attach the ebpf program to the cgroup
 ///
 /// You can replace step 2 with a specific cgroup path as you like.
-pub fn init_cgroup_skb_monitor(
-    open_object: &'static mut MaybeUninit<libbpf_rs::OpenObject>,
+pub fn init_cgroup_skb_monitor<'a>(
+    open_object: &'a mut MaybeUninit<libbpf_rs::OpenObject>,
     pid: &str,
-) -> Result<(CgroupTransmitCounter, (Link, Link)), Box<dyn std::error::Error>> {
+) -> Result<(CgroupTransmitCounter<'a>, (Link, Link)), Box<dyn std::error::Error>> {
     let cgroup = get_pid_cgroup(pid)?;
     let mut cgroup_transmit_counter = CgroupTransmitCounter::new(open_object)?;
     log::info!(
@@ -206,8 +206,8 @@ pub fn get_pid_cgroup(pid: &str) -> io::Result<(String, Vec<i32>)> {
 }
 
 pub(crate) fn load_ebpf_skel(
-    open_object: &'static mut MaybeUninit<libbpf_rs::OpenObject>,
-) -> Result<CgroupTransmitCounter, DynError> {
+    open_object: &mut MaybeUninit<libbpf_rs::OpenObject>,
+) -> Result<CgroupTransmitCounter<'_>, DynError> {
     let mut skel_builder = ProgramSkelBuilder::default();
 
     skel_builder.obj_builder.debug(false);
@@ -269,10 +269,10 @@ fn get_cgroups_of(process_name: &str) -> Result<Vec<String>, DynError> {
 /// Initialize the eBPF program for monitoring the cgroup traffic of processes with the process name.
 /// It will attach to a group of cgroups that the processes belongs to.
 /// process_name can be `grep -E` pattern(EREs), like "sshd|nginx|^rust-analyzer$".
-pub fn init_cgroup_skb_for_process_name(
-    open_object: &'static mut MaybeUninit<libbpf_rs::OpenObject>,
+pub fn init_cgroup_skb_for_process_name<'a>(
+    open_object: &'a mut MaybeUninit<libbpf_rs::OpenObject>,
     process_name: &str,
-) -> Result<(CgroupTransmitCounter, Vec<Link>), Box<dyn std::error::Error>> {
+) -> Result<(CgroupTransmitCounter<'a>, Vec<Link>), Box<dyn std::error::Error>> {
     let cgroups = get_cgroups_of(process_name)?;
     if cgroups.is_empty() {
         return Err("No cgroup found".into());
