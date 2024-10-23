@@ -17,7 +17,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // let glibc = "/lib64/libc.so.6";
     let cmd = Command::new("bash")
         .arg("-c")
-        .arg("find / -name libc.so.6|grep 64|head -n 1")
+        .arg("find / -name libc.so.6|grep 64|grep -v containers|grep -v overlay|head -n 1")
         .output();
     let glibc = match cmd {
         Ok(output) => String::from_utf8(output.stdout)
