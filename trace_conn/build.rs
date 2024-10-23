@@ -6,12 +6,8 @@ use libbpf_cargo::SkeletonBuilder;
 const SRC: &str = "src/bpf/tracecon.bpf.c";
 
 fn main() {
-    let out = PathBuf::from(
-        env::var_os("CARGO_MANIFEST_DIR").expect("CARGO_MANIFEST_DIR must be set in build script"),
-    )
-    .join("src")
-    .join("bpf")
-    .join("tracecon.skel.rs");
+    let out = PathBuf::from(env::var_os("OUT_DIR").expect("OUT_DIR must be set in build script"))
+        .join("tracecon.skel.rs");
     let mut builder = SkeletonBuilder::new();
     let builder = builder.source(SRC);
     // 使用本地的vmlinux.h

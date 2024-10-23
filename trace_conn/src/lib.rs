@@ -9,10 +9,7 @@ use std::path::Path;
 use std::time::Duration;
 
 mod prog {
-    include!(concat!(
-        env!("CARGO_MANIFEST_DIR"),
-        "/src/bpf/tracecon.skel.rs"
-    ));
+    include!(concat!(env!("OUT_DIR"), "/tracecon.skel.rs"));
 }
 use prog::*;
 
