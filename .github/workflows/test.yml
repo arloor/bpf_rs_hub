@@ -1,0 +1,32 @@
+name: ci_test
+on:
+  push:
+    branches: [ "**"]
+permissions:
+  contents: write
+env:
+  CARGO_TERM_COLOR: always
+jobs:
+  bpf:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: build bpf
+        if: github.event_name == 'push' && github.ref == 'refs/heads/master' 
+        id: build_bpf
+        uses: arloor/rust_musl_action@latest
+        with:
+          use_musl: false
+          extra_deps: cmake zlib1g-dev libelf-dev clang pkg-config make
+          after_install: |
+            find /usr -name libelf.a
+            find /usr -name libz.a
+            export LIBBPF_SYS_LIBRARY_PATH=/usr/lib/x86_64-linux-gnu
+            echo -e "\e[31mLIBBPF_SYS_LIBRARY_PATH=$LIBBPF_SYS_LIBRARY_PATH\e[0m"
+          args: -p socket_filter -p cgroup_traffic --features static -v
+          apt_mirror: mirrors.mit.edu
+          rust_flags: -C target-feature=+crt-static
+          debug: false
+      - name: ls dir
+        run: |
+            ls ${{ steps.build_bpf.outputs.release_dir }}
