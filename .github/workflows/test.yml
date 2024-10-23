@@ -33,7 +33,7 @@ jobs:
         uses: arloor/rust_musl_action@latest
         with:
             use_musl: false
-            extra_deps: cmake clang pkg-config make
+            extra_deps: cmake clang pkg-config make autoconf autopoint flex bison gawk
             args: -p socket_filter -p cgroup_traffic --features vendored -v
             apt_mirror: mirrors.mit.edu
             rust_flags: -C target-feature=+crt-static
