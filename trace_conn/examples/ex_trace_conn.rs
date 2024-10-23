@@ -13,7 +13,7 @@ fn handle_event(_cpu: i32, data: &[u8]) {
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     // find / -name libc.so.6
-    let glibc = "/usr/lib64/libc.so.6";
+    let glibc = "/usr/lib/x86_64-linux-gnu/libc.so.6";
     // let glibc = "/lib64/libc.so.6";
     println!("start trace connection");
     let mut open_object = MaybeUninit::uninit();
