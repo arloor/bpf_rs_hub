@@ -4,6 +4,7 @@
         "if_ether.h": "c"
     },
     "github-actions.workflows.pinned.workflows": [
-        ".github/workflows/auto.yml"
+        ".github/workflows/auto.yml",
+        ".github/workflows/test.yml"
     ]
 }

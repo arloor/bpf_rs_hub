@@ -11,9 +11,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: build bpf
+      - name: build static
         if: github.event_name == 'push' && github.ref == 'refs/heads/master' 
-        id: build_bpf
+        id: build_static
         uses: arloor/rust_musl_action@latest
         with:
           use_musl: false
@@ -27,6 +27,14 @@ jobs:
           apt_mirror: mirrors.mit.edu
           rust_flags: -C target-feature=+crt-static
           debug: false
-      - name: ls dir
-        run: |
-            ls ${{ steps.build_bpf.outputs.release_dir }}
+      - name: build vendored
+        if: github.event_name == 'push' && github.ref == 'refs/heads/master' 
+        id: build_vendored
+        uses: arloor/rust_musl_action@latest
+        with:
+            use_musl: false
+            extra_deps: cmake clang pkg-config make
+            args: -p socket_filter -p cgroup_traffic --features vendored -v
+            apt_mirror: mirrors.mit.edu
+            rust_flags: -C target-feature=+crt-static
+            debug: false          

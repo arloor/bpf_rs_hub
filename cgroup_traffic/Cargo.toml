@@ -20,9 +20,9 @@ path = "examples/ex_cgroup_traffic.rs"
 
 
 [dependencies]
-libc.workspace = true                                      # Raw FFI bindings to platform libraries like libc
-libbpf-rs = { workspace = true, default-features = false } # libbpf-rs is a safe, idiomatic, and opinionated wrapper around libbpf-sys
-plain.workspace = true                                     # A small Rust library that allows users to reinterpret data of certain types safely
+libc.workspace = true            # Raw FFI bindings to platform libraries like libc
+libbpf-rs = { workspace = true } # libbpf-rs is a safe, idiomatic, and opinionated wrapper around libbpf-sys
+plain.workspace = true           # A small Rust library that allows users to reinterpret data of certain types safely
 log.workspace = true
 [dev-dependencies]
 env_logger = "0.11"
@@ -31,6 +31,6 @@ env_logger = "0.11"
 libbpf-cargo = { workspace = true } # Cargo plugin to build bpf programs
 
 [features]
-default = ["libbpf-rs/default"]
+default = []
 vendored = ["libbpf-rs/vendored"]
 static = ["libbpf-rs/static"]
