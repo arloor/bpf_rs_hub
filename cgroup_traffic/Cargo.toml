@@ -24,6 +24,7 @@ libc.workspace = true            # Raw FFI bindings to platform libraries like l
 libbpf-rs = { workspace = true } # libbpf-rs is a safe, idiomatic, and opinionated wrapper around libbpf-sys
 plain.workspace = true           # A small Rust library that allows users to reinterpret data of certain types safely
 log.workspace = true
+chrono = "0.4"
 [dev-dependencies]
 env_logger = "0.11"
 
