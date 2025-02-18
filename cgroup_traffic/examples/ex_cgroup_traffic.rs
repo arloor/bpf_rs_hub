@@ -6,8 +6,7 @@ use log::info;
 pub fn main() -> Result<(), Box<dyn std::error::Error>> {
     use chrono::Local;
     use std::io::Write;
-    let _ = env_logger::builder()
-        .filter_level(log::LevelFilter::Info)
+    let _ = env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info"))
         .format(|buf, record| {
             writeln!(
                 buf,
