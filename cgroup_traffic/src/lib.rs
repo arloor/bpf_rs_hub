@@ -50,7 +50,7 @@ impl<'a> CgroupTransmitCounter<'a> {
     /// It will load the ebpf program and return a CgroupTransmitCounter.
     pub fn new(
         open_object: &'a mut MaybeUninit<libbpf_rs::OpenObject>,
-    ) -> Result<CgroupTransmitCounter, DynError> {
+    ) -> Result<CgroupTransmitCounter<'a>, DynError> {
         let cgroup_transmit_counter = load_ebpf_skel(open_object)?;
         Ok(cgroup_transmit_counter)
     }
