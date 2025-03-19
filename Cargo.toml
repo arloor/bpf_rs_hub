@@ -2,7 +2,7 @@
 # https://doc.rust-lang.org/cargo/reference/specifying-dependencies.html#inheriting-a-dependency-from-a-workspace
 [workspace.dependencies]
 libbpf-cargo = "0.24"
-libbpf-rs = "0.24.8"                                                           # Cargo plugin to build bpf programs
+libbpf-rs = "0.24"                                                             # Cargo plugin to build bpf programs
 vmlinux = { version = "0.0", git = "https://github.com/libbpf/vmlinux.h.git" } # vmlinux.h for bpf programs
 log = "0.4"
 libc = "0.2"
