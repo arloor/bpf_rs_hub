@@ -161,7 +161,7 @@ checksum = "613afe47fcd5fac7ccf1db93babcb082c5994d996f20b8b159f2ad1658eb5724"
 
 [[package]]
 name = "cgroup_traffic"
-version = "0.2.2"
+version = "0.2.3"
 dependencies = [
  "chrono",
  "env_logger",
@@ -824,7 +824,7 @@ checksum = "0fda2ff0d084019ba4d7c6f371c95d8fd75ce3524c3cb8fb653a3023f6323e64"
 
 [[package]]
 name = "socket_filter"
-version = "0.2.2"
+version = "0.2.3"
 dependencies = [
  "libbpf-cargo",
  "libbpf-rs",
@@ -901,7 +901,7 @@ dependencies = [
 
 [[package]]
 name = "trace_conn"
-version = "0.2.2"
+version = "0.2.3"
 dependencies = [
  "libbpf-cargo",
  "libbpf-rs",

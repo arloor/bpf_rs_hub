@@ -163,7 +163,7 @@ pub fn get_pid_cgroup(pid: &str) -> io::Result<(String, Vec<i32>)> {
         ));
     }
 
-    let proc_fs = format!("/proc/{}/cgroup", pid);
+    let proc_fs = format!("/proc/{pid}/cgroup");
     let path = Path::new(proc_fs.as_str());
     let file = File::open(path)?;
     let reader = io::BufReader::new(file);
@@ -207,8 +207,7 @@ fn get_pids_of(process_name: &str) -> Result<Vec<(u32, String)>, DynError> {
     let output = Command::new("sh")
         .arg("-c")
         .arg(format!(
-            r#"ps -eo pid,comm | awk '$2 ~ /{}/ {{print $1",,"$2}}'"#,
-            process_name
+            r#"ps -eo pid,comm | awk '$2 ~ /{process_name}/ {{print $1",,"$2}}'"#
         ))
         .output()?;
     Ok(String::from_utf8(output.stdout)?
@@ -231,15 +230,11 @@ fn get_cgroups_of(process_name: &str) -> Result<Vec<String>, DynError> {
         .filter_map(
             |(pid, process_name)| match get_pid_cgroup(&pid.to_string()) {
                 Ok((cgroup_path, _)) => {
-                    log::info!(
-                        "process:{:^10}, pid:{:^10}, cgroup: {cgroup_path}",
-                        process_name,
-                        pid,
-                    );
+                    log::info!("process:{process_name:^10}, pid:{pid:^10}, cgroup: {cgroup_path}",);
                     Some(cgroup_path)
                 }
                 Err(e) => {
-                    log::error!("Failed to find cgroup path for pid: {}", e);
+                    log::error!("Failed to find cgroup path for pid: {e}");
                     None
                 }
             },

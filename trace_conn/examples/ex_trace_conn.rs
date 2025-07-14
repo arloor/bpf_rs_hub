@@ -26,7 +26,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             .to_owned(),
         Err(e) => return Err(e.into()),
     };
-    println!("glibc: {}", glibc);
+    println!("glibc: {glibc}");
 
     println!("start trace connection");
     let mut open_object = MaybeUninit::uninit();
