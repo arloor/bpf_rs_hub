@@ -13,4 +13,4 @@ members = ["socket_filter", "trace_conn", "cgroup_traffic"]
 resolver = "2"
 
 [workspace.package]
-version = "0.2.3"
+version = "0.2.4"
