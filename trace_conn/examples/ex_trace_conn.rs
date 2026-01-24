@@ -1,34 +1,38 @@
-use std::{mem::MaybeUninit, net::Ipv4Addr, process::Command};
+use std::{mem::MaybeUninit, net::Ipv4Addr};
 use trace_conn::Event;
 fn handle_event(_cpu: i32, data: &[u8]) {
     let mut event = Event::default();
     plain::copy_from_bytes(&mut event, data).expect("Event data buffer was too short");
 
     match event.tag {
-        0 => println!("ip event: {}", Ipv4Addr::from(event.ip)),
-        1 => println!("host event: {}", String::from_utf8_lossy(&event.hostname)),
+        0 => log::info!("ip event: {}", Ipv4Addr::from(event.ip)),
+        1 => log::info!("host event: {}", String::from_utf8_lossy(&event.hostname)),
         _ => {}
     }
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // find / -name libc.so.6
-    // let glibc = "/usr/lib64/libc.so.6";
-    // let glibc = "/lib64/libc.so.6";
-    let cmd = Command::new("bash")
-        .arg("-c")
-        .arg("find / -name libc.so.6|grep 64|grep -v containers|grep -v overlay|head -n 1")
-        .output();
-    let glibc = match cmd {
-        Ok(output) => String::from_utf8(output.stdout)
-            .unwrap_or("unknown".to_string())
-            .trim()
-            .to_owned(),
-        Err(e) => return Err(e.into()),
-    };
-    println!("glibc: {glibc}");
+    use chrono::Local;
+    use std::io::Write;
+    let _ = env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info"))
+        .format(|buf, record| {
+            writeln!(
+                buf,
+                "{} {} [{}] {}",
+                Local::now().format("%Y-%m-%d %H:%M:%S"),
+                record.level(),
+                record.module_path().unwrap_or("<unnamed>"),
+                &record.args()
+            )
+        })
+        .try_init();
+    // find /usr -name libc.so.6
+    // /usr/lib32/libc.so.6
+    // /usr/lib/x86_64-linux-gnu/libc.so.6
+    let glibc = "/lib/x86_64-linux-gnu/libc.so.6".to_string();
+    log::info!("glibc: {glibc}");
 
-    println!("start trace connection");
+    log::info!("start trace connection");
     let mut open_object = MaybeUninit::uninit();
     trace_conn::start(glibc.as_str(), handle_event, &mut open_object)
 }

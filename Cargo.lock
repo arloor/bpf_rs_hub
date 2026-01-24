@@ -915,9 +915,12 @@ dependencies = [
 name = "trace_conn"
 version = "0.2.4"
 dependencies = [
+ "chrono",
+ "env_logger",
  "libbpf-cargo",
  "libbpf-rs",
  "libc",
+ "log",
  "object",
  "plain",
  "vmlinux",
