@@ -9,7 +9,7 @@ edition = "2021"
 libbpf-rs = { workspace = true }
 plain.workspace = true
 libc.workspace = true
-object = "0.36"
+object = "0.40"
 
 [build-dependencies]
 libbpf-cargo = { workspace = true } # Cargo plugin to build bpf programs

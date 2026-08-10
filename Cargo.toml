@@ -1,8 +1,8 @@
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 # https://doc.rust-lang.org/cargo/reference/specifying-dependencies.html#inheriting-a-dependency-from-a-workspace
 [workspace.dependencies]
-libbpf-cargo = "0.25"
-libbpf-rs = "0.25" # Cargo plugin to build bpf programs
+libbpf-cargo = "0.27"
+libbpf-rs = "0.27" # Cargo plugin to build bpf programs
 log = "0.4"
 libc = "0.2"
 plain = "0.2.3"
@@ -12,4 +12,4 @@ members = ["socket_filter", "trace_conn", "cgroup_traffic"]
 resolver = "2"
 
 [workspace.package]
-version = "0.2.5"
+version = "0.2.6"

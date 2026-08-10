@@ -30,7 +30,7 @@
             "cargo": {
                 "args": [
                     "build",
-                    "--features=vendored,remote-vmlinux",
+                    "--features=vendored",
                     "--example=ex_trace_conn",
                     "--package=trace_conn"
                 ],
