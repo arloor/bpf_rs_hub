@@ -14,7 +14,7 @@ pub fn main() -> Result<(), Box<dyn std::error::Error>> {
                 Local::now().format("%Y-%m-%d %H:%M:%S"),
                 record.level(),
                 record.module_path().unwrap_or("<unnamed>"),
-                &record.args()
+                record.args()
             )
         })
         .try_init();
