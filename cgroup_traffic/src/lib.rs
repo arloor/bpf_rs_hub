@@ -1,9 +1,12 @@
 #![deny(warnings)]
 //! # cgroup_traffic
 //!
-//! `cgroup_traffic` is a library to monitor the network traffic of a cgroup. By passing a pid to this library, it will attach to the cgroup of the pid and monitor the network traffic of the cgroup.
+//! `cgroup_traffic` is a library for monitoring the network traffic of a cgroup. By passing a PID to this library, it attaches to the process's cgroup and monitors that cgroup's network traffic.
 //!
-//! It use ebpf program `BPF_PROG_TYPE_CGROUP_SKB` to monitor the network traffic. Now it's only tested for Cgroup V2. It doesn't support Cgroup V1, because it cannot parse the path of cgroup V1.
+//! This implementation supports **cgroup v2 only**. It uses eBPF programs of type
+//! `BPF_PROG_TYPE_CGROUP_SKB` and the kernel cgroup BPF attach API, which accepts only cgroup v2
+//! directory file descriptors. Attaching to a cgroup v1 directory fails with `EBADF`, so cgroup
+//! v1 support cannot be added by path parsing alone.
 
 use libbpf_rs::skel::{OpenSkel, SkelBuilder};
 // use object::{Object, ObjectSymbol};
@@ -57,7 +60,8 @@ impl<'a> CgroupTransmitCounter<'a> {
 
     /// Attach the ebpf program to a cgroup.
     ///
-    /// The cgroup_path should be a full path to the cgroup directory.
+    /// `cgroup_path` must be the full path to a cgroup v2 directory. Cgroup v1 directories are not
+    /// supported by the kernel cgroup BPF attach API.
     pub fn attach_cgroup(&mut self, cgroup_path: String) -> Result<(Link, Link), DynError> {
         let file = std::fs::OpenOptions::new()
             .read(true)
@@ -105,7 +109,8 @@ use std::path::Path;
 ///
 /// Returns a list of PIDs in the cgroup.
 ///
-/// ONLY support Cgroup V2
+/// The monitoring APIs in this crate support only cgroup v2. This helper simply reads the
+/// `cgroup.procs` file at the supplied path.
 pub fn list_pids_in_cgroup(cgroup_path: &str) -> io::Result<Vec<i32>> {
     let procs_path = Path::new(cgroup_path).join(CGROUP_PROCS);
     let mut file = File::open(procs_path)?;
@@ -129,10 +134,11 @@ const CGROUP_PROCS: &str = "cgroup.procs";
 ///
 /// Steps:
 /// 1. Load the ebpf program
-/// 2. Get the cgroup path of the pid. ONLY support CgroupV2
+/// 2. Get the cgroup v2 path of the PID
 /// 3. Attach the ebpf program to the cgroup
 ///
-/// You can replace step 2 with a specific cgroup path as you like.
+/// Cgroup v1 is not supported because the kernel cgroup BPF attach API accepts only cgroup v2
+/// directory file descriptors.
 pub fn init_cgroup_skb_monitor<'a>(
     open_object: &'a mut MaybeUninit<libbpf_rs::OpenObject>,
     pid: &str,
@@ -153,7 +159,9 @@ pub fn init_cgroup_skb_monitor<'a>(
 ///
 /// The pid should be a string of the process id.
 ///
-/// Use `/sys/fs/cgroup` and  `/proc/{pid}/cgroup` to get the actual cgroup path.
+/// Uses `/sys/fs/cgroup` and the unified cgroup v2 entry (`0::...`) in `/proc/{pid}/cgroup` to get
+/// the actual cgroup path. Legacy cgroup v1 entries are intentionally not resolved because they
+/// cannot be used with this crate's cgroup BPF attach mechanism.
 pub fn get_pid_cgroup(pid: &str) -> io::Result<(String, Vec<i32>)> {
     let cgroup_dir = Path::new("/sys/fs/cgroup");
     if !cgroup_dir.exists() {
@@ -246,6 +254,9 @@ fn get_cgroups_of(process_name: &str) -> Result<Vec<String>, DynError> {
 /// Initialize the eBPF program for monitoring the cgroup traffic of processes with the process name.
 /// It will attach to a group of cgroups that the processes belongs to.
 /// process_name can be `grep -E` pattern(EREs), like "sshd|nginx|^rust-analyzer$".
+///
+/// This function supports only cgroup v2. Cgroup v1 directories cannot be used with the kernel
+/// cgroup BPF attach API.
 pub fn init_cgroup_skb_for_process_name<'a>(
     open_object: &'a mut MaybeUninit<libbpf_rs::OpenObject>,
     process_name: &str,

@@ -1,6 +1,6 @@
-`cgroup_traffic` is a library to monitor the network traffic of a cgroup. By passing a pid to this library, it will attach to the cgroup of the pid and monitor the network traffic of the cgroup.
+`cgroup_traffic` is a library for monitoring the network traffic of a cgroup. By passing a PID to this library, it attaches to the process's cgroup and monitors that cgroup's network traffic.
 
-It use ebpf program `BPF_PROG_TYPE_CGROUP_SKB` to monitor the network traffic. Now it's only tested for Cgroup V2. It doesn't support Cgroup V1, because it cannot parse the path of cgroup V1.
+This library supports **cgroup v2 only**. It uses eBPF programs of type `BPF_PROG_TYPE_CGROUP_SKB` and attaches them to a cgroup with the kernel cgroup BPF attach API. That API accepts only cgroup v2 directory file descriptors; attaching to a cgroup v1 directory fails with `EBADF`. Consequently, adding cgroup v1 path parsing alone cannot make this implementation support cgroup v1.
 
 ## Examples
 
@@ -32,8 +32,8 @@ pub fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 ```
  
-Refer to `cgroup_traffic::init_cgroup_skb_monitor` if you want to attach to a specific cgroup path.
+Use `cgroup_traffic::CgroupTransmitCounter::attach_cgroup` if you want to attach to a specific cgroup v2 path.
 
 ## Limitations
 
-- Support for Cgroup V1 is NOT tested.
+- cgroup v1 is not supported by this implementation. Supporting it would require a different monitoring mechanism or an additional cgroup v2 hierarchy; it cannot be enabled by changing path parsing alone.
