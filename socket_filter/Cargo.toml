@@ -15,8 +15,8 @@ readme = "README.md"
 path = "src/lib.rs" # 库文件的路径
 
 [[example]]
-name = "example1"
-path = "examples/example1.rs"
+name = "ex_socket_filter"
+path = "examples/ex_socket_filter.rs"
 
 [dependencies]
 libc.workspace = true            # Raw FFI bindings to platform libraries like libc
